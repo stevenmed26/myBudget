@@ -58,9 +58,10 @@ func (r *Repository) ListByUserAndDateRange(ctx context.Context, userID, startDa
 
 func (r *Repository) Create(ctx context.Context, userID string, req CreateTransactionRequest) (*Transaction, error) {
 	const q = `
-		INSERT INTO transactions
+		INSERT INTO transactions (
 			user_id, category_id, amount_cents, transaction_type,
-			transaction_date::text, merchant_name, note, source, created_at, updated_at, deleted_at
+			transaction_date::text, merchant_name, note, source
+		)
 		VALUES ($1, $2, $3, $4, $5::date, $6, $7, 'manual')
 		RETURNING
 			id, user_id, category_id, amount_cents, transaction_type,
@@ -68,7 +69,7 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateTransa
 	`
 
 	var t Transaction
-	err := r.db.Pool.Query(
+	err := r.db.Pool.QueryRow(
 		ctx,
 		q,
 		userID,

@@ -18,7 +18,7 @@ func Load() Config {
 
 	cfg := Config{
 		APIPort:     getEnv("API_PORT", "8080"),
-		DatabaseURL: getEnv("BATABASE_URL", "postgres://postgres:postgres@localhost:5432/mybudget?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/mybudget?sslmode=disable"),
 		DemoUserID:  getEnv("DEMO_USER_ID", "11111111-1111-1111-1111-111111111111"),
 	}
 	return cfg

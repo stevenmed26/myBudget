@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 
 	"mybudget-api/internal/categories"
 	"mybudget-api/internal/config"
@@ -29,7 +30,7 @@ func main() {
 
 	r := chi.NewRouter()
 
-	r.Use(cors.handler(cors.Options{
+	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},

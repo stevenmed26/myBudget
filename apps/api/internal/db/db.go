@@ -24,7 +24,7 @@ func New(databaseURL string) *DB {
 	cfg.MaxConnIdleTime = 10 * time.Minute
 	cfg.HealthCheckPeriod = 30 * time.Second
 
-	pool, err := pgxpool.NewWithconfig(context.Background(), cfg)
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		log.Fatalf("ping db: %v", err)
 	}
