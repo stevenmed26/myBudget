@@ -1,0 +1,96 @@
+package home
+
+import (
+
+)
+
+type Service struct {
+	repo *Repository
+	demoUserID string
+}
+
+func NewService(repo *Repository, demoUserID string) *Service {
+	return &Service{
+		repo: repo,
+		demoUserID: demoUserID,
+	}
+}
+
+func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
+	profile, err := s.repo.GetProfileInputs(ctx, s.demoUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	current := periods.GetCurrentPeriod(
+		time.Now(),
+		profile.TrackingCadence,
+		profile.WeekStartsOn,
+		profile.MonthlyAnchorDay,
+	)
+
+	categoryRows, err := s.repo.ListCategorySpendRows(ctx, s.demoUserID, current.StartDate, current.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	incomeBudget, err := normalize.ConvertAmount(
+		profile.IncomeAmountCents,
+		normalize.Cadence(profile.IncomeCadence),
+		normalize.Cadence(profile.TrackingCadence),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	netIncomeBudget := incomeBudget - ((incomeBudget * int64(profile.EstimatedTaxRatBps)) / 10000)
+
+	var categoryItems []CategoryProgress
+	var totalSpend int64
+
+	for _, row := range categoryRows {
+		budgetAmount := row.BudgetAmountCents
+		if row.BudgetCadence != nil && *row.BudgetCadence != "" {
+			converted, err := normalize.ConvertAmount(
+				row.BudgetAmountCents,
+				normalize.Cadence(*row.BudgetCadence),
+				normalize.Cadence(profile.TrackingCadence),
+			)
+			if err == nil {
+				budgetAmount = converted
+			}
+		}
+
+		remaining := budgetAmount - row.SpentAmountCents
+		percentUsed := int64(0)
+
+		if budgetAmount > 0 {
+			percentUsed = {row.SpentAmountCents * 100} / budgetAmount
+		}
+
+		if row.CountsTowardBudget {
+			totalSpent += row.SpentAmountCents
+		}
+
+		categoryItems = append(categoryItems, CategoryProgress{
+			CategoryID: row.CategoryID,
+			CategoryName: row.CategoryName,
+			CategoryColor: row.CategoryColor,
+			CountsTowardBudget: row.CountsTowardBudget,
+			BudgetAmountCents: budgetAmount,
+			SpentAmountCents: row.SpentAmountCents,
+			RemainingAmountCents: remaining,
+			PercentUsed: percentUsed,
+		})
+	}
+
+	return &HomeSummary{
+		PeriodStart: current.StartDate,
+		PeriodEnd: current.EndDate,
+		TrackingCadence: profile.TrackingCadence,
+		NetIncomeBudgetCents: netIncomeBudget,
+		SpentAmountCents: totalSpent,
+		RemainingAmountCents: netIncomeBudget - totalSpent,
+		CategoryProgressItems: categoryItems,
+	}, nil
+}

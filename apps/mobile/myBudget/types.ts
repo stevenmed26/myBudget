@@ -34,3 +34,40 @@ export type Summary = {
     net_cents: number;
     remaining_budget_cents: number;
 };
+
+export type BudgetProfile = {
+    user_id: string;
+    tracking_cadence: "weekly" | "monthly";
+    week_starts_on: number;
+    monthly_anchor_day: number;
+    currency_code: string;
+    locale: string;
+    timezone: string;
+    income_amount_cents: number;
+    income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
+    location_code: string;
+    estimated_tax_rate_bps: number;
+    created_at: string;
+    updated_at: string;
+};
+
+export type HomeCategoryProgress = {
+    category_id: string;
+    category_name: string;
+    category_color: string;
+    counts_toward_budget: boolean;
+    budget_amount_cents: number;
+    spent_amount_cents: number;
+    remaining_amount_cents: number;
+    percent_used: number;
+}
+
+export type HomeSummary = {
+    period_start: string;
+    period_end: string;
+    tracking_cadence: "weekly" | "monthly";
+    net_income_budget_cents: number;
+    spent_amount_cents: number;
+    remaining_amount_cents: number;
+    category_progress_items: HomeCategoryProgress[];
+};

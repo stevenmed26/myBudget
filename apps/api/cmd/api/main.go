@@ -28,6 +28,17 @@ func main() {
 	dashboardRepo := dashboard.NewRepository(database)
 	dashboardHandler := dashboard.NewHandler(dashboardRepo, cfg.DemoUserID)
 
+	profileRepo := profile.NewRepository(database)
+	profileHandler := profile.NewHandler(profileRepo, cfg.DemoUserID)
+
+	categoryBudgetRepo := categorybudget.NewRepository(database)
+	categoryBudgetHandler := categorybudget.NewHandler(categoryBudgetRepo, cfg.DemoUserID)
+
+	homeRepo := home.NewRepository(database)
+	homeService := home.NewService(homeRepo, cfg.DemoUserID)
+	homeHandler := home.NewHandler(homeService)
+
+
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -52,6 +63,14 @@ func main() {
 		r.Post("/transactions", transactionHandler.Create)
 
 		r.Get("/dashboard/summary", dashboardHandler.Summary)
+
+		r.Get("/profile", profileHandler.Get)
+		r.Put("/profile", profileHandler.Update)
+
+		r.Get("/category-budgets", categoryBudgetHandler.List)
+		r.Post("/category-budgets", categoryBudgetHandler.Upsert)
+
+		r.Get("/home/summary", homeHandler.Summary)
 	})
 
 	addr := ":" + cfg.APIPort
