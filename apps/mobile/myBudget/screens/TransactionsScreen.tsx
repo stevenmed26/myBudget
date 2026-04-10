@@ -5,6 +5,7 @@ import { LabeledInput } from "../components/LabeledInput";
 import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
+import { AvatarBadge } from "../components/AvatarBadge";
 import { Category, Transaction } from "../types";
 
 function formatCents(cents: number) {
@@ -154,16 +155,25 @@ export function TransactionsScreen({
                     style={{
                       flexDirection: "row",
                       justifyContent: "space-between",
-                      alignItems: "center",
+                      alignItems: "flex-start",
+                      gap: 12,
                     }}
                   >
-                    <View style={{ gap: 3 }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
-                        {item.merchant_name || category?.name || "Transaction"}
-                      </Text>
-                      <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                        {category?.name || "Unknown category"} · {item.transaction_date}
-                      </Text>
+                    <View style={{ flexDirection: "row", gap: 12, flex: 1 }}>
+                      <AvatarBadge
+                        colors={colors}
+                        label={item.merchant_name || category?.name || "Txn"}
+                        tint={category?.color ? `${category.color}22` : colors.surfaceRaised}
+                      />
+
+                      <View style={{ gap: 3, flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
+                          {item.merchant_name || category?.name || "Transaction"}
+                        </Text>
+                        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                          {category?.name || "Unknown category"} · {item.transaction_date}
+                        </Text>
+                      </View>
                     </View>
 
                     <Text

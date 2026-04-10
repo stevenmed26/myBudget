@@ -1,14 +1,18 @@
 import React from "react";
-import { Alert } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+
 import { HomeScreen } from "./screens/HomeScreen";
 import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
+
 import { useAppColors } from "./styles/theme";
 import { useAppData } from "./hooks/useAppData";
+import { useAppFonts } from "./fonts";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,7 +22,7 @@ function formatCents(cents: number) {
   return `${sign}$${(abs / 100).toFixed(2)}`;
 }
 
-export default function App() {
+function AppShell() {
   const colors = useAppColors();
   const {
     categories,
@@ -53,9 +57,9 @@ export default function App() {
   }
 
   const navTheme = {
-    ...(colors.bg === "#F4F7FB" ? DefaultTheme : DarkTheme),
+    ...(colors.bg === "#F4F6F8" ? DefaultTheme : DarkTheme),
     colors: {
-      ...(colors.bg === "#F4F7FB" ? DefaultTheme.colors : DarkTheme.colors),
+      ...(colors.bg === "#F4F6F8" ? DefaultTheme.colors : DarkTheme.colors),
       background: colors.bg,
       card: colors.surface,
       text: colors.text,
@@ -67,12 +71,12 @@ export default function App() {
   return (
     <NavigationContainer theme={navTheme}>
       <Tab.Navigator
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
-            height: 72,
+            height: 74,
             paddingTop: 8,
             paddingBottom: 8,
           },
@@ -81,8 +85,32 @@ export default function App() {
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: "600",
+            fontFamily: "Inter_600SemiBold",
           },
-        }}
+          tabBarIcon: ({ color, size, focused }) => {
+            let name: keyof typeof Ionicons.glyphMap = "ellipse";
+
+            switch (route.name) {
+              case "Home":
+                name = focused ? "home" : "home-outline";
+                break;
+              case "Transactions":
+                name = focused ? "swap-horizontal" : "swap-horizontal-outline";
+                break;
+              case "Categories":
+                name = focused ? "grid" : "grid-outline";
+                break;
+              case "Analytics":
+                name = focused ? "stats-chart" : "stats-chart-outline";
+                break;
+              case "Profile":
+                name = focused ? "person-circle" : "person-circle-outline";
+                break;
+            }
+
+            return <Ionicons name={name} size={size} color={color} />;
+          },
+        })}
       >
         <Tab.Screen name="Home">
           {() => (
@@ -133,4 +161,25 @@ export default function App() {
       </Tab.Navigator>
     </NavigationContainer>
   );
+}
+
+export default function App() {
+  const [fontsLoaded] = useAppFonts();
+
+  if (!fontsLoaded) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#0A0A0B",
+        }}
+      >
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  return <AppShell />;
 }

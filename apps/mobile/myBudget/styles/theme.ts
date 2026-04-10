@@ -6,6 +6,7 @@ export type ThemeColors = {
   bgSecondary: string;
   surface: string;
   surfaceElevated: string;
+  surfaceRaised: string;
   border: string;
   text: string;
   textMuted: string;
@@ -19,6 +20,7 @@ export type ThemeColors = {
   warning: string;
   warningSoft: string;
   white: string;
+  shadow: string;
 };
 
 export function useAppColors(): ThemeColors {
@@ -28,31 +30,34 @@ export function useAppColors(): ThemeColors {
   return useMemo(() => {
     if (isDark) {
       return {
-        bg: "#0B1020",
-        bgSecondary: "#0F172A",
-        surface: "#111827",
-        surfaceElevated: "#172033",
+        bg: "#0A0A0B",
+        bgSecondary: "#111214",
+        surface: "#151618",
+        surfaceElevated: "#1A1B1F",
+        surfaceRaised: "#202228",
         border: "rgba(255,255,255,0.06)",
-        text: "#F8FAFC",
-        textMuted: "#94A3B8",
-        textSoft: "#CBD5E1",
-        accent: "#5B7FFF",
-        accentSoft: "rgba(91,127,255,0.14)",
-        success: "#2EC27E",
-        successSoft: "rgba(46,194,126,0.14)",
-        danger: "#F97373",
-        dangerSoft: "rgba(249,115,115,0.14)",
+        text: "#F5F7FA",
+        textMuted: "#A1A7B3",
+        textSoft: "#C7CCD5",
+        accent: "#6E8BFF",
+        accentSoft: "rgba(110,139,255,0.14)",
+        success: "#34D399",
+        successSoft: "rgba(52,211,153,0.14)",
+        danger: "#FB7185",
+        dangerSoft: "rgba(251,113,133,0.14)",
         warning: "#F59E0B",
         warningSoft: "rgba(245,158,11,0.14)",
         white: "#FFFFFF",
+        shadow: "#000000",
       };
     }
 
     return {
-      bg: "#F4F7FB",
-      bgSecondary: "#EAF0F8",
+      bg: "#F4F6F8",
+      bgSecondary: "#EAEFF5",
       surface: "#FFFFFF",
       surfaceElevated: "#F8FAFC",
+      surfaceRaised: "#FFFFFF",
       border: "rgba(15,23,42,0.08)",
       text: "#0F172A",
       textMuted: "#64748B",
@@ -66,6 +71,7 @@ export function useAppColors(): ThemeColors {
       warning: "#D97706",
       warningSoft: "rgba(217,119,6,0.10)",
       white: "#FFFFFF",
+      shadow: "#000000",
     };
   }, [isDark]);
 }

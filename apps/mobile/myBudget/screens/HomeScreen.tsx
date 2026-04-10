@@ -1,7 +1,8 @@
 import React from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Alert, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
 import { CategoryProgressRow } from "../components/CategoryProgressRow";
+import { HeroBudgetCard } from "../components/HeroBudgetCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { StatCard } from "../components/StatCard";
 import { commonStyles } from "../styles/common";
@@ -25,88 +26,36 @@ export function HomeScreen({
   onRefresh: () => Promise<void>;
   onClosePeriod: () => Promise<void>;
 }) {
-  const remaining = homeSummary?.remaining_amount_cents ?? 0;
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
         <View style={{ gap: 6 }}>
           <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>myBudget</Text>
           <Text style={[commonStyles.title, { color: colors.text }]}>Overview</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 15 }}>
-            {homeSummary?.period_start} - {homeSummary?.period_end}
-          </Text>
         </View>
 
-        <Card
+        <HeroBudgetCard
           colors={colors}
-          elevated
-          style={{
-            backgroundColor: colors.surfaceElevated,
-            gap: 18,
+          periodLabel={`${homeSummary?.period_start} - ${homeSummary?.period_end}`}
+          cadenceLabel={homeSummary?.tracking_cadence ?? "weekly"}
+          remaining={homeSummary?.remaining_amount_cents ?? 0}
+          budget={homeSummary?.net_income_budget_cents ?? 0}
+          spent={homeSummary?.spent_amount_cents ?? 0}
+          onClosePeriod={async () => {
+            try {
+              await onClosePeriod();
+            } catch (err: any) {
+              Alert.alert("Close failed", err?.message ?? "Unknown error");
+            }
           }}
-        >
-          <View style={{ gap: 6 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: "600" }}>
-              Remaining this {homeSummary?.tracking_cadence === "monthly" ? "month" : "week"}
-            </Text>
-            <Text
-              style={{
-                color: remaining < 0 ? colors.danger : colors.text,
-                fontSize: 40,
-                fontWeight: "700",
-                letterSpacing: -1.4,
-              }}
-            >
-              {formatCents(remaining)}
-            </Text>
-            <Text style={{ color: colors.textSoft, fontSize: 14 }}>
-              Budget {formatCents(homeSummary?.net_income_budget_cents ?? 0)} · Spent{" "}
-              {formatCents(homeSummary?.spent_amount_cents ?? 0)}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Pressable
-              onPress={async () => {
-                try {
-                  await onClosePeriod();
-                } catch (err: any) {
-                  Alert.alert("Close failed", err?.message ?? "Unknown error");
-                }
-              }}
-              style={[
-                commonStyles.button,
-                {
-                  flex: 1,
-                  backgroundColor: colors.accent,
-                },
-              ]}
-            >
-              <Text style={commonStyles.buttonText}>Close Period</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={async () => {
-                try {
-                  await onRefresh();
-                } catch (err: any) {
-                  Alert.alert("Refresh failed", err?.message ?? "Unknown error");
-                }
-              }}
-              style={[
-                commonStyles.secondaryButton,
-                {
-                  flex: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                },
-              ]}
-            >
-              <Text style={{ color: colors.text, fontWeight: "700", fontSize: 16 }}>Refresh</Text>
-            </Pressable>
-          </View>
-        </Card>
+          onRefresh={async () => {
+            try {
+              await onRefresh();
+            } catch (err: any) {
+              Alert.alert("Refresh failed", err?.message ?? "Unknown error");
+            }
+          }}
+        />
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <StatCard

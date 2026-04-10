@@ -6,6 +6,7 @@ import { StatCard } from "../components/StatCard";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { AnalyticsSummary } from "../types";
+import { SimpleBarChart } from "../components/SimpleBarChart";
 
 function formatCents(cents: number) {
   const sign = cents < 0 ? "-" : "";
@@ -108,51 +109,16 @@ export function AnalyticsScreen({
           </View>
         </Card>
 
-        <Card colors={colors}>
-          <SectionHeader
-            colors={colors}
-            title="Spending by category"
-            subtitle="Where most of your expenses have gone"
-          />
-
-          <View style={{ gap: 12 }}>
-            {analytics?.category_breakdown.map((item) => (
-              <View
-                key={item.category_id}
-                style={{
-                  paddingVertical: 6,
-                  gap: 8,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                    <View
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 999,
-                        backgroundColor: item.color,
-                      }}
-                    />
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: "600" }}>
-                      {item.category_name}
-                    </Text>
-                  </View>
-
-                  <Text style={{ color: colors.text, fontWeight: "700" }}>
-                    {formatCents(item.amount_cents)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </Card>
+        <SimpleBarChart
+          colors={colors}
+          data={
+            analytics?.category_breakdown.slice(0, 6).map((item) => ({
+              label: item.category_name,
+              value: item.amount_cents,
+              color: item.color,
+            })) ?? []
+          }
+        />
 
         <Card colors={colors}>
           <SectionHeader
