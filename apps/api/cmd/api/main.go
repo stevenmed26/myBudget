@@ -8,10 +8,14 @@ import (
 	"github.com/go-chi/cors"
 
 	"mybudget-api/internal/categories"
+	"mybudget-api/internal/categorybudgets"
 	"mybudget-api/internal/config"
 	"mybudget-api/internal/dashboard"
 	"mybudget-api/internal/db"
+	"mybudget-api/internal/home"
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/periodclose"
+	"mybudget-api/internal/profile"
 	"mybudget-api/internal/transactions"
 )
 
@@ -31,13 +35,16 @@ func main() {
 	profileRepo := profile.NewRepository(database)
 	profileHandler := profile.NewHandler(profileRepo, cfg.DemoUserID)
 
-	categoryBudgetRepo := categorybudget.NewRepository(database)
-	categoryBudgetHandler := categorybudget.NewHandler(categoryBudgetRepo, cfg.DemoUserID)
+	categoryBudgetRepo := categorybudgets.NewRepository(database)
+	categoryBudgetHandler := categorybudgets.NewHandler(categoryBudgetRepo, cfg.DemoUserID)
 
 	homeRepo := home.NewRepository(database)
 	homeService := home.NewService(homeRepo, cfg.DemoUserID)
 	homeHandler := home.NewHandler(homeService)
 
+	periodCloseRepo := periodclose.NewRepository(database)
+	periodCloseService := periodclose.NewService(periodCloseRepo, homeService, cfg.DemoUserID)
+	periodCloseHandler := periodclose.NewHandler(periodCloseService)
 
 	r := chi.NewRouter()
 
@@ -61,6 +68,7 @@ func main() {
 
 		r.Get("/transactions", transactionHandler.List)
 		r.Post("/transactions", transactionHandler.Create)
+		r.Delete("/transactions/{transactionID}", transactionHandler.Delete)
 
 		r.Get("/dashboard/summary", dashboardHandler.Summary)
 
@@ -71,9 +79,11 @@ func main() {
 		r.Post("/category-budgets", categoryBudgetHandler.Upsert)
 
 		r.Get("/home/summary", homeHandler.Summary)
+
+		r.Post("/periods/close-current", periodCloseHandler.CloseCurrent)
 	})
 
 	addr := ":" + cfg.APIPort
-	log.Printf("myBudget API starting on %s", addr)
+	log.Printf("myBudget API running on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, r))
 }

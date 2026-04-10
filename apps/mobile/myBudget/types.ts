@@ -11,6 +11,18 @@ export type Category = {
     updated_at: string;
 };
 
+export type CategoryBudget = {
+    id: string;
+    category_id: string;
+    category_name: string;
+    category_color: string;
+    amount_cents: number;
+    cadence: "weekly" | "monthly" | "yearly";
+    effective_from: string;
+    effective_to?: string | null;
+    created_at: string;
+}
+
 export type Transaction = {
     id: string;
     user_id: string;
@@ -23,16 +35,6 @@ export type Transaction = {
     source: string;
     created_at: string;
     updated_at: string;
-};
-
-export type Summary = {
-    period_start: string;
-    period_end: string;
-    income_cents: number;
-    expense_cents: number;
-    saved_cents: number;
-    net_cents: number;
-    remaining_budget_cents: number;
 };
 
 export type BudgetProfile = {
@@ -71,3 +73,14 @@ export type HomeSummary = {
     remaining_amount_cents: number;
     category_progress_items: HomeCategoryProgress[];
 };
+
+export type ClosePeriodResponse = {
+    period_start: string;
+    period_end: string;
+    status: string;
+    net_income_budget_cents: number;
+    spent_amount_cents: number;
+    leftover_amount_cents: number;
+    saved_transaction_id?: string;
+    already_closed: boolean;
+}

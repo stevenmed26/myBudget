@@ -1,17 +1,21 @@
 package home
 
 import (
+	"context"
+	"time"
 
+	"mybudget-api/internal/periods"
+	"mybudget-api/pkg/normalize"
 )
 
 type Service struct {
-	repo *Repository
+	repo       *Repository
 	demoUserID string
 }
 
 func NewService(repo *Repository, demoUserID string) *Service {
 	return &Service{
-		repo: repo,
+		repo:       repo,
 		demoUserID: demoUserID,
 	}
 }
@@ -43,10 +47,10 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 		return nil, err
 	}
 
-	netIncomeBudget := incomeBudget - ((incomeBudget * int64(profile.EstimatedTaxRatBps)) / 10000)
+	netIncomeBudget := incomeBudget - ((incomeBudget * int64(profile.EstimatedTaxRateBps)) / 10000)
 
 	var categoryItems []CategoryProgress
-	var totalSpend int64
+	var totalSpent int64
 
 	for _, row := range categoryRows {
 		budgetAmount := row.BudgetAmountCents
@@ -65,7 +69,7 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 		percentUsed := int64(0)
 
 		if budgetAmount > 0 {
-			percentUsed = {row.SpentAmountCents * 100} / budgetAmount
+			percentUsed = (row.SpentAmountCents * 100) / budgetAmount
 		}
 
 		if row.CountsTowardBudget {
@@ -73,24 +77,24 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 		}
 
 		categoryItems = append(categoryItems, CategoryProgress{
-			CategoryID: row.CategoryID,
-			CategoryName: row.CategoryName,
-			CategoryColor: row.CategoryColor,
-			CountsTowardBudget: row.CountsTowardBudget,
-			BudgetAmountCents: budgetAmount,
-			SpentAmountCents: row.SpentAmountCents,
+			CategoryID:           row.CategoryID,
+			CategoryName:         row.CategoryName,
+			CategoryColor:        row.CategoryColor,
+			CountsTowardBudget:   row.CountsTowardBudget,
+			BudgetAmountCents:    budgetAmount,
+			SpentAmountCents:     row.SpentAmountCents,
 			RemainingAmountCents: remaining,
-			PercentUsed: percentUsed,
+			PercentUsed:          percentUsed,
 		})
 	}
 
 	return &HomeSummary{
-		PeriodStart: current.StartDate,
-		PeriodEnd: current.EndDate,
-		TrackingCadence: profile.TrackingCadence,
-		NetIncomeBudgetCents: netIncomeBudget,
-		SpentAmountCents: totalSpent,
-		RemainingAmountCents: netIncomeBudget - totalSpent,
+		PeriodStart:           current.StartDate,
+		PeriodEnd:             current.EndDate,
+		TrackingCadence:       profile.TrackingCadence,
+		NetIncomeBudgetCents:  netIncomeBudget,
+		SpentAmountCents:      totalSpent,
+		RemainingAmountCents:  netIncomeBudget - totalSpent,
 		CategoryProgressItems: categoryItems,
 	}, nil
 }

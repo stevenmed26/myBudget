@@ -18,6 +18,8 @@ func (r *Repository) ListActiveByUser(ctx context.Context, userID string, onDate
 	    SELECT
 		    cb.id,
 			cb.category_id,
+			c.name,
+			c.color,
 			cb.amount_cents,
 			cb.cadence,
 			cb.effective_from::text,
@@ -44,6 +46,8 @@ func (r *Repository) ListActiveByUser(ctx context.Context, userID string, onDate
 		if err := rows.Scan(
 			&item.ID,
 			&item.CategoryID,
+			&item.CategoryName,
+			&item.CategoryColor,
 			&item.AmountCents,
 			&item.Cadence,
 			&item.EffectiveFrom,
@@ -97,6 +101,20 @@ func (r *Repository) UpsertNewVersion(ctx context.Context, req UpsertCategoryBud
 		&item.EffectiveTo,
 		&item.CreatedAt,
 	); err != nil {
+		return nil, err
+	}
+
+	const categoryQ = `
+	    SELECT name, color
+		FROM categories
+		WHERE id = $1
+	`
+
+	if err := tx.QueryRow(ctx, categoryQ, item.CategoryID).Scan(&item.CategoryColor, &item.CategoryName); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 

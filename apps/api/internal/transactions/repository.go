@@ -99,3 +99,16 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateTransa
 
 	return &t, nil
 }
+
+func (r *Repository) SoftDelete(ctx context.Context, userID, transactionID string) error {
+	const q = `
+		UPDATE transactions
+		SET deleted_at = NOW()
+		WHERE id = $1
+			AND user_id = $2
+			AND deleted_at IS NULL
+	`
+
+	_, err := r.db.Pool.Exec(ctx, q, transactionID, userID)
+	return err
+}

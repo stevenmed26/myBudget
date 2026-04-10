@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -74,4 +76,21 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, item)
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	transactionID := chi.URLParam(r, "transactionID")
+	if strings.TrimSpace(transactionID) == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "transactionID is required")
+		return
+	}
+
+	if err := h.repo.SoftDelete(r.Context(), h.demoUserID, transactionID); err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"deleted": true,
+	})
 }

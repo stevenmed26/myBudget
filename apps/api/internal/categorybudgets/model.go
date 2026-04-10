@@ -7,6 +7,8 @@ import (
 type CategoryBudget struct {
 	ID            string    `json:"id"`
 	CategoryID    string    `json:"category_id"`
+	CategoryName  string    `json:"category_name"`
+	CategoryColor string    `json:"category_color"`
 	AmountCents   int64     `json:"amount_cents"`
 	Cadence       string    `json:"cadence"`
 	EffectiveFrom string    `json:"effective_from"`

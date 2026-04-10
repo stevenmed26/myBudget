@@ -1,4 +1,11 @@
-import { Category, Summary, Transaction, BudgetProfile, HomeCategoryProgress, HomeSummary } from "./types";
+import {
+    Category,
+    CategoryBudget,
+    Transaction,
+    BudgetProfile,
+    HomeCategoryProgress,
+    HomeSummary,
+    ClosePeriodResponse } from "./types";
 
 const API_BASE_URL = "http://192.168.1.10:8080/api";
 // Replace with LAN IP for physical device testing
@@ -33,17 +40,30 @@ export async function fetchTransactions(startDate?: string, endDate?: string): P
     return data.transactions;
 }
 
-export async function fetchSummary(startDate?: string, endDate?: string): Promise<Summary> {
-    const params = new URLSearchParams();
-    if (startDate) params.set("start_date", startDate);
-    if (endDate) params.set("end_date", endDate);
+export async function createTransaction(input: {
+    category_id: string;
+    amount_cents: number;
+    transaction_type: 'expense' | 'income';
+    transaction_date: string;
+    merchant_name?: string;
+    note?: string;
+}) {
+    const res = await fetch(`${API_BASE_URL}/transactions`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+    });
 
-    const url = params.toString()
-    ? `${API_BASE_URL}/dashboard/summary?${params.toString()}`
-    : `$API_BASE_URL/dashboard/summary`;
+    return handle<Transaction>(res);
+}
 
-    const res = await fetch(url);
-    return handle<Summary>(res);
+export async function deleteTransaction(transactionID: string) {
+    const res = await fetch(`${API_BASE_URL}/transactions/${transactionID}`, {
+        method: 'DELETE',
+    });
+    return handle<{ deleted: boolean }>(res);
 }
 
 export async function fetchProfile(): Promise<BudgetProfile> {
@@ -76,23 +96,12 @@ export async function fetchHomeSummary(): Promise<HomeSummary> {
     return handle<HomeSummary>(res);
 }
 
-export async function createTransaction(input: {
-    category_id: string;
-    amount_cents: number;
-    transaction_type: 'expense' | 'income';
-    transaction_date: string;
-    merchant_name?: string;
-    note?: string;
-}) {
-    const res = await fetch(`${API_BASE_URL}/transactions`, {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(input),
-    });
 
-    return handle<Transaction>(res);
+
+export async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
+    const res = await fetch(`${API_BASE_URL}/budgets`);
+    const data = await handle<{ category_budgets: CategoryBudget[] }>(res);
+    return data.category_budgets;
 }
 
 export async function upsertCategoryBudget(input: {
@@ -101,12 +110,19 @@ export async function upsertCategoryBudget(input: {
     cadence: "weekly" | "monthly" | "yearly";
     effective_from: string;
 }) {
-    const res = await fetch(`${API_BASE_URL}/budgets`, {
+    const res = await fetch(`${API_BASE_URL}/category-budgets`, {
         method: 'POST',
         headers: {
             "Content-Type": "application/json",
         },
         body: JSON.stringify(input),
     });
-    return handle(res);
+    return handle<CategoryBudget>(res);
+}
+
+export async function closeCurrentPeriod(): Promise<ClosePeriodResponse> {
+    const res = await fetch(`${API_BASE_URL}/period/close-current`, {
+        method: 'POST',
+    });
+    return handle<ClosePeriodResponse>(res);
 }
