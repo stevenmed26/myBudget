@@ -9,6 +9,8 @@ import {
 } from "./types";
 
 const API_BASE_URL = "http://192.168.1.10:8080/api/v1";
+// iPhone const API_BASE_URL = "http://127.0.0.1:8080/api/v1";
+// Android const API_BASE_URL = "http://10.0.2.2:8080/api/v1";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
