@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 
+	"mybudget-api/internal/analytics"
 	"mybudget-api/internal/categories"
 	"mybudget-api/internal/categorybudgets"
 	"mybudget-api/internal/config"
@@ -39,12 +40,15 @@ func main() {
 	categoryBudgetHandler := categorybudgets.NewHandler(categoryBudgetRepo, cfg.DemoUserID)
 
 	homeRepo := home.NewRepository(database)
-	homeService := home.NewService(homeRepo, cfg.DemoUserID)
+	homeService := home.NewService(homeRepo, profileRepo, cfg.DemoUserID)
 	homeHandler := home.NewHandler(homeService)
 
 	periodCloseRepo := periodclose.NewRepository(database)
 	periodCloseService := periodclose.NewService(periodCloseRepo, homeService, cfg.DemoUserID)
 	periodCloseHandler := periodclose.NewHandler(periodCloseService)
+
+	analyticsRepo := analytics.NewRepository(database)
+	analyticsHandler := analytics.NewHandler(analyticsRepo, cfg.DemoUserID)
 
 	r := chi.NewRouter()
 
@@ -57,9 +61,7 @@ func main() {
 	}))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusOK, map[string]string{
-			"status": "ok",
-		})
+		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
@@ -79,8 +81,9 @@ func main() {
 		r.Post("/category-budgets", categoryBudgetHandler.Upsert)
 
 		r.Get("/home/summary", homeHandler.Summary)
-
 		r.Post("/periods/close-current", periodCloseHandler.CloseCurrent)
+
+		r.Get("/analytics/summary", analyticsHandler.Summary)
 	})
 
 	addr := ":" + cfg.APIPort
