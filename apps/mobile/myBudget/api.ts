@@ -99,5 +99,14 @@ export async function upsertCategoryBudget(input: {
     category_id: string;
     amount_cents: number;
     cadence: "weekly" | "monthly" | "yearly";
-    effective_from: string
-})
+    effective_from: string;
+}) {
+    const res = await fetch(`${API_BASE_URL}/budgets`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+    });
+    return handle(res);
+}
