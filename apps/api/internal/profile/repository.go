@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+
 	"mybudget-api/internal/db"
 )
 
@@ -13,16 +14,28 @@ func NewRepository(db *db.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) GetByUser(ctx context.Context, userID string) (*BudgetProfile, error) {
+func (r *Repository) GetCurrentByUser(ctx context.Context, userID string) (*BudgetProfile, error) {
 	const q = `
-	    SELECT
-		    user_id, tracking_cadence, week_starts_on, monthly_anchor_day,
-			currency_code, locale, timezone,
-			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
-			created_at, updated_at
-		FROM budget_profiles
+		SELECT
+			user_id,
+			tracking_cadence,
+			week_starts_on,
+			monthly_anchor_day,
+			currency_code,
+			locale,
+			timezone,
+			income_amount_cents,
+			income_cadence,
+			location_code,
+			estimated_tax_rate_bps,
+			created_at,
+			created_at AS updated_at
+		FROM budget_profile_versions
 		WHERE user_id = $1
-    `
+		  AND effective_to IS NULL
+		ORDER BY effective_from DESC, created_at DESC
+		LIMIT 1
+	`
 
 	var p BudgetProfile
 	err := r.db.Pool.QueryRow(ctx, q, userID).Scan(
@@ -43,34 +56,108 @@ func (r *Repository) GetByUser(ctx context.Context, userID string) (*BudgetProfi
 	if err != nil {
 		return nil, err
 	}
+
 	return &p, nil
 }
 
-func (r *Repository) UpdateByUser(ctx context.Context, userID string, req UpdateBudgetProfileRequest) (*BudgetProfile, error) {
+func (r *Repository) GetVersionForDate(ctx context.Context, userID string, onDate string) (*BudgetProfile, error) {
 	const q = `
-	    UPDATE budgt_profiles
-		SET
-		    tracking_cadence = $2,
-			week_starts_on = $3,
-			monthly_anchor_day = $4,
-			currency_code = $5,
-			locale = $6,
-			timezone = $7,
-			income_amount_cents = $8,
-			income_cadence = $9,
-			location_code = $10,
-			estimated_tax_rate_bps = $11,
-			updated_at = NOW()
+		SELECT
+			user_id,
+			tracking_cadence,
+			week_starts_on,
+			monthly_anchor_day,
+			currency_code,
+			locale,
+			timezone,
+			income_amount_cents,
+			income_cadence,
+			location_code,
+			estimated_tax_rate_bps,
+			created_at,
+			created_at AS updated_at
+		FROM budget_profile_versions
 		WHERE user_id = $1
-		RETURNING
-		    user_id, tracking_cadence, week_starts_on, monthly_anchor_day,
-			currency_code, locale, timezone,
-			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
-			created_at, updated_at
+		  AND effective_from <= $2::date
+		  AND (effective_to IS NULL OR effective_to >= $2::date)
+		ORDER BY effective_from DESC, created_at DESC
+		LIMIT 1
 	`
 
 	var p BudgetProfile
-	err := r.db.Pool.QueryRow(ctx, q,
+	err := r.db.Pool.QueryRow(ctx, q, userID, onDate).Scan(
+		&p.UserID,
+		&p.TrackingCadence,
+		&p.WeekStartsOn,
+		&p.MonthlyAnchorDay,
+		&p.CurrencyCode,
+		&p.Locale,
+		&p.Timezone,
+		&p.IncomeAmountCents,
+		&p.IncomeCadence,
+		&p.LocationCode,
+		&p.EstimatedTaxRateBps,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &p, nil
+}
+
+func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req UpdateBudgetProfileRequest, effectiveFrom string) (*BudgetProfile, error) {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	const closeOld = `
+		UPDATE budget_profile_versions
+		SET effective_to = ($2::date - INTERVAL '1 day')::date
+		WHERE user_id = $1
+		  AND effective_to IS NULL
+	`
+	if _, err := tx.Exec(ctx, closeOld, userID, effectiveFrom); err != nil {
+		return nil, err
+	}
+
+	const insertNew = `
+		INSERT INTO budget_profile_versions (
+			user_id,
+			tracking_cadence,
+			week_starts_on,
+			monthly_anchor_day,
+			currency_code,
+			locale,
+			timezone,
+			income_amount_cents,
+			income_cadence,
+			location_code,
+			estimated_tax_rate_bps,
+			effective_from
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::date)
+		RETURNING
+			user_id,
+			tracking_cadence,
+			week_starts_on,
+			monthly_anchor_day,
+			currency_code,
+			locale,
+			timezone,
+			income_amount_cents,
+			income_cadence,
+			location_code,
+			estimated_tax_rate_bps,
+			created_at,
+			created_at AS updated_at
+	`
+
+	var p BudgetProfile
+	err = tx.QueryRow(ctx, insertNew,
 		userID,
 		req.TrackingCadence,
 		req.WeekStartsOn,
@@ -82,6 +169,7 @@ func (r *Repository) UpdateByUser(ctx context.Context, userID string, req Update
 		req.IncomeCadence,
 		req.LocationCode,
 		req.EstimatedTaxRateBps,
+		effectiveFrom,
 	).Scan(
 		&p.UserID,
 		&p.TrackingCadence,
@@ -100,5 +188,10 @@ func (r *Repository) UpdateByUser(ctx context.Context, userID string, req Update
 	if err != nil {
 		return nil, err
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
 	return &p, nil
 }

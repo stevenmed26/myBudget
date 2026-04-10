@@ -56,7 +56,7 @@ type categorySpendRow struct {
 	SpentAmountCents   int64
 }
 
-func (r *Repository) ListCategorySpendRows(ctx context.Context, userID, startDate, endDate string) ([]categorySpendRow, error) {
+func (r *Repository) GetCategorySpendRows(ctx context.Context, userID, startDate, endDate string) ([]categorySpendRow, error) {
 	const q = `
 	    WITH active_budget AS (
 		    SELECT DISTINCT ON (cb.category_id)

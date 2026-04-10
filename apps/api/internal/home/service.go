@@ -5,49 +5,57 @@ import (
 	"time"
 
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/profile"
 	"mybudget-api/pkg/normalize"
 )
 
 type Service struct {
-	repo       *Repository
-	demoUserID string
+	repo        *Repository
+	profileRepo *profile.Repository
+	demoUserID  string
 }
 
-func NewService(repo *Repository, demoUserID string) *Service {
+func NewService(repo *Repository, profileRepo *profile.Repository, demoUserID string) *Service {
 	return &Service{
-		repo:       repo,
-		demoUserID: demoUserID,
+		repo:        repo,
+		profileRepo: profileRepo,
+		demoUserID:  demoUserID,
 	}
 }
 
 func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
-	profile, err := s.repo.GetProfileInputs(ctx, s.demoUserID)
+	currentProfile, err := s.profileRepo.GetCurrentByUser(ctx, s.demoUserID)
 	if err != nil {
 		return nil, err
 	}
 
 	current := periods.GetCurrentPeriod(
 		time.Now(),
-		profile.TrackingCadence,
-		profile.WeekStartsOn,
-		profile.MonthlyAnchorDay,
+		currentProfile.TrackingCadence,
+		currentProfile.WeekStartsOn,
+		currentProfile.MonthlyAnchorDay,
 	)
 
-	categoryRows, err := s.repo.ListCategorySpendRows(ctx, s.demoUserID, current.StartDate, current.EndDate)
+	activeProfile, err := s.profileRepo.GetVersionForDate(ctx, s.demoUserID, current.StartDate)
+	if err != nil {
+		return nil, err
+	}
+
+	categoryRows, err := s.repo.GetCategorySpendRows(ctx, s.demoUserID, current.StartDate, current.EndDate)
 	if err != nil {
 		return nil, err
 	}
 
 	incomeBudget, err := normalize.ConvertAmount(
-		profile.IncomeAmountCents,
-		normalize.Cadence(profile.IncomeCadence),
-		normalize.Cadence(profile.TrackingCadence),
+		activeProfile.IncomeAmountCents,
+		normalize.Cadence(activeProfile.IncomeCadence),
+		normalize.Cadence(activeProfile.TrackingCadence),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	netIncomeBudget := incomeBudget - ((incomeBudget * int64(profile.EstimatedTaxRateBps)) / 10000)
+	netIncomeBudget := incomeBudget - ((incomeBudget * int64(activeProfile.EstimatedTaxRateBps)) / 10000)
 
 	var categoryItems []CategoryProgress
 	var totalSpent int64
@@ -58,7 +66,7 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 			converted, err := normalize.ConvertAmount(
 				row.BudgetAmountCents,
 				normalize.Cadence(*row.BudgetCadence),
-				normalize.Cadence(profile.TrackingCadence),
+				normalize.Cadence(activeProfile.TrackingCadence),
 			)
 			if err == nil {
 				budgetAmount = converted
@@ -67,7 +75,6 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 
 		remaining := budgetAmount - row.SpentAmountCents
 		percentUsed := int64(0)
-
 		if budgetAmount > 0 {
 			percentUsed = (row.SpentAmountCents * 100) / budgetAmount
 		}
@@ -91,7 +98,7 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 	return &HomeSummary{
 		PeriodStart:           current.StartDate,
 		PeriodEnd:             current.EndDate,
-		TrackingCadence:       profile.TrackingCadence,
+		TrackingCadence:       activeProfile.TrackingCadence,
 		NetIncomeBudgetCents:  netIncomeBudget,
 		SpentAmountCents:      totalSpent,
 		RemainingAmountCents:  netIncomeBudget - totalSpent,
