@@ -16,8 +16,8 @@ export function ProgressBar({
   return (
     <View
       style={{
-        height: 10,
-        backgroundColor: colors.border,
+        height: 8,
+        backgroundColor: colors.bgSecondary,
         borderRadius: 999,
         overflow: "hidden",
       }}
@@ -27,6 +27,7 @@ export function ProgressBar({
           width: `${capped}%`,
           height: "100%",
           backgroundColor: color,
+          borderRadius: 999,
         }}
       />
     </View>

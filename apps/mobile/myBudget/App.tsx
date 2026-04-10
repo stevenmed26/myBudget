@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { HomeScreen } from "./screens/HomeScreen";
 import { TransactionsScreen } from "./screens/TransactionsScreen";
@@ -52,14 +52,36 @@ export default function App() {
     );
   }
 
+  const navTheme = {
+    ...(colors.bg === "#F4F7FB" ? DefaultTheme : DarkTheme),
+    colors: {
+      ...(colors.bg === "#F4F7FB" ? DefaultTheme.colors : DarkTheme.colors),
+      background: colors.bg,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.accent,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            height: 72,
+            paddingTop: 8,
+            paddingBottom: 8,
+          },
           tabBarActiveTintColor: colors.accent,
-          tabBarInactiveTintColor: colors.subtext,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "600",
+          },
         }}
       >
         <Tab.Screen name="Home">

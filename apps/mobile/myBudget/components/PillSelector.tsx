@@ -15,11 +15,18 @@ export function PillSelector<T extends string>({
   colors: ThemeColors;
   accentColor?: string;
 }) {
+  const activeColor = accentColor ?? colors.accent;
+
   return (
-    <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 10,
+      }}
+    >
       {options.map((option) => {
-        const active = selected === option;
-        const fill = accentColor ?? colors.accent;
+        const isActive = selected === option;
 
         return (
           <Pressable
@@ -30,11 +37,19 @@ export function PillSelector<T extends string>({
               paddingHorizontal: 14,
               borderRadius: 999,
               borderWidth: 1,
-              borderColor: active ? fill : colors.border,
-              backgroundColor: active ? fill : colors.card,
+              borderColor: isActive ? activeColor : colors.border,
+              backgroundColor: isActive ? activeColor : colors.surfaceElevated,
             }}
           >
-            <Text style={{ color: active ? "#FFFFFF" : colors.text, fontWeight: "600" }}>
+            <Text
+              style={{
+                color: isActive ? colors.white : colors.text,
+                fontWeight: "600",
+                fontSize: 14,
+                letterSpacing: 0.1,
+                textTransform: "capitalize",
+              }}
+            >
               {option}
             </Text>
           </Pressable>

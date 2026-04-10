@@ -1,7 +1,8 @@
 import React from "react";
 import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
-import { ProgressBar } from "../components/ProgressBar";
+import { CategoryProgressRow } from "../components/CategoryProgressRow";
+import { SectionHeader } from "../components/SectionHeader";
 import { StatCard } from "../components/StatCard";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
@@ -24,19 +25,87 @@ export function HomeScreen({
   onRefresh: () => Promise<void>;
   onClosePeriod: () => Promise<void>;
 }) {
+  const remaining = homeSummary?.remaining_amount_cents ?? 0;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
-        <Text style={[commonStyles.title, { color: colors.text }]}>myBudget</Text>
-
-        <Card colors={colors}>
-          <Text style={{ color: colors.subtext, fontSize: 13 }}>Current Period</Text>
-          <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>
+        <View style={{ gap: 6 }}>
+          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>myBudget</Text>
+          <Text style={[commonStyles.title, { color: colors.text }]}>Overview</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 15 }}>
             {homeSummary?.period_start} - {homeSummary?.period_end}
           </Text>
-          <Text style={{ color: colors.subtext }}>
-            Tracking cadence: {homeSummary?.tracking_cadence}
-          </Text>
+        </View>
+
+        <Card
+          colors={colors}
+          elevated
+          style={{
+            backgroundColor: colors.surfaceElevated,
+            gap: 18,
+          }}
+        >
+          <View style={{ gap: 6 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: "600" }}>
+              Remaining this {homeSummary?.tracking_cadence === "monthly" ? "month" : "week"}
+            </Text>
+            <Text
+              style={{
+                color: remaining < 0 ? colors.danger : colors.text,
+                fontSize: 40,
+                fontWeight: "700",
+                letterSpacing: -1.4,
+              }}
+            >
+              {formatCents(remaining)}
+            </Text>
+            <Text style={{ color: colors.textSoft, fontSize: 14 }}>
+              Budget {formatCents(homeSummary?.net_income_budget_cents ?? 0)} · Spent{" "}
+              {formatCents(homeSummary?.spent_amount_cents ?? 0)}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Pressable
+              onPress={async () => {
+                try {
+                  await onClosePeriod();
+                } catch (err: any) {
+                  Alert.alert("Close failed", err?.message ?? "Unknown error");
+                }
+              }}
+              style={[
+                commonStyles.button,
+                {
+                  flex: 1,
+                  backgroundColor: colors.accent,
+                },
+              ]}
+            >
+              <Text style={commonStyles.buttonText}>Close Period</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={async () => {
+                try {
+                  await onRefresh();
+                } catch (err: any) {
+                  Alert.alert("Refresh failed", err?.message ?? "Unknown error");
+                }
+              }}
+              style={[
+                commonStyles.secondaryButton,
+                {
+                  flex: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            >
+              <Text style={{ color: colors.text, fontWeight: "700", fontSize: 16 }}>Refresh</Text>
+            </Pressable>
+          </View>
         </Card>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
@@ -54,82 +123,26 @@ export function HomeScreen({
         </View>
 
         <Card colors={colors}>
-          <Text style={{ color: colors.subtext }}>Remaining</Text>
-          <Text
-            style={{
-              color: (homeSummary?.remaining_amount_cents ?? 0) < 0 ? colors.danger : colors.success,
-              fontSize: 26,
-              fontWeight: "700",
-              marginTop: 6,
-            }}
-          >
-            {formatCents(homeSummary?.remaining_amount_cents ?? 0)}
-          </Text>
-        </Card>
+          <SectionHeader
+            colors={colors}
+            title="Category progress"
+            subtitle="Track where this period is going"
+          />
 
-        <Pressable
-          onPress={async () => {
-            try {
-              await onClosePeriod();
-            } catch (err: any) {
-              Alert.alert("Close failed", err?.message ?? "Unknown error");
-            }
-          }}
-          style={[commonStyles.button, { backgroundColor: colors.accent }]}
-        >
-          <Text style={commonStyles.buttonText}>Close Current Period</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={async () => {
-            try {
-              await onRefresh();
-            } catch (err: any) {
-              Alert.alert("Refresh failed", err?.message ?? "Unknown error");
-            }
-          }}
-          style={{
-            borderRadius: 14,
-            paddingVertical: 12,
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Text style={{ color: colors.text, fontWeight: "700" }}>Refresh</Text>
-        </Pressable>
-
-        <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Category Progress</Text>
-          {homeSummary?.category_progress_items.map((item) => {
-            const over = item.remaining_amount_cents < 0;
-            return (
-              <View
+          <View style={{ gap: 8 }}>
+            {homeSummary?.category_progress_items.map((item) => (
+              <CategoryProgressRow
                 key={item.category_id}
-                style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, gap: 8 }}
-              >
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
-                    {item.category_name}
-                  </Text>
-                  <Text style={{ color: over ? colors.danger : colors.subtext, fontWeight: "700" }}>
-                    {item.percent_used}%
-                  </Text>
-                </View>
-
-                <ProgressBar percent={item.percent_used} color={item.category_color} colors={colors} />
-
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={{ color: colors.subtext }}>Spent {formatCents(item.spent_amount_cents)}</Text>
-                  <Text style={{ color: colors.subtext }}>Budget {formatCents(item.budget_amount_cents)}</Text>
-                </View>
-
-                <Text style={{ color: over ? colors.danger : colors.success, fontWeight: "600" }}>
-                  Remaining {formatCents(item.remaining_amount_cents)}
-                </Text>
-              </View>
-            );
-          })}
+                colors={colors}
+                name={item.category_name}
+                color={item.category_color}
+                percentUsed={item.percent_used}
+                spent={item.spent_amount_cents}
+                budget={item.budget_amount_cents}
+                remaining={item.remaining_amount_cents}
+              />
+            ))}
+          </View>
         </Card>
       </ScrollView>
     </SafeAreaView>

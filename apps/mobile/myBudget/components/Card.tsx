@@ -7,17 +7,19 @@ export function Card({
   colors,
   children,
   style,
+  elevated = false,
 }: {
   colors: ThemeColors;
   children: React.ReactNode;
   style?: ViewStyle;
+  elevated?: boolean;
 }) {
   return (
     <View
       style={[
         commonStyles.card,
         {
-          backgroundColor: colors.card,
+          backgroundColor: elevated ? colors.surfaceElevated : colors.surface,
           borderColor: colors.border,
         },
         style,

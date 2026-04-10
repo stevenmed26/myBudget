@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
+import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
+import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { CategoryBudget } from "../types";
@@ -32,51 +34,80 @@ export function CategoriesScreen({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
-        <Text style={[commonStyles.title, { color: colors.text }]}>Categories</Text>
+        <View style={{ gap: 6 }}>
+          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>Planning</Text>
+          <Text style={[commonStyles.title, { color: colors.text }]}>Categories</Text>
+        </View>
 
         <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Budget Caps</Text>
+          <SectionHeader
+            colors={colors}
+            title="Budget caps"
+            subtitle="Control spending limits by category"
+          />
 
-          {budgets.map((item) => (
-            <View key={item.category_id} style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, gap: 10 }}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>{item.category_name}</Text>
-
-              <TextInput
-                placeholder="Budget amount"
-                placeholderTextColor={colors.subtext}
-                keyboardType="decimal-pad"
-                value={drafts[item.category_id] ?? ""}
-                onChangeText={(value) => setDrafts((prev) => ({ ...prev, [item.category_id]: value }))}
-                style={[commonStyles.input, { borderColor: colors.border, color: colors.text }]}
-              />
-
-              <PillSelector
-                options={["weekly", "monthly", "yearly"] as const}
-                selected={cadences[item.category_id] ?? item.cadence}
-                onSelect={(value) => setCadences((prev) => ({ ...prev, [item.category_id]: value }))}
-                colors={colors}
-                accentColor={item.category_color}
-              />
-
-              <Pressable
-                onPress={async () => {
-                  try {
-                    await onSaveBudget(
-                      item.category_id,
-                      drafts[item.category_id] ?? "0",
-                      cadences[item.category_id] ?? item.cadence
-                    );
-                    Alert.alert("Saved", "Category budget updated.");
-                  } catch (err: any) {
-                    Alert.alert("Save failed", err?.message ?? "Unknown error");
-                  }
+          <View style={{ gap: 14 }}>
+            {budgets.map((item) => (
+              <View
+                key={item.category_id}
+                style={{
+                  paddingTop: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                  gap: 12,
                 }}
-                style={[commonStyles.button, { backgroundColor: colors.accent, paddingVertical: 10 }]}
               >
-                <Text style={commonStyles.buttonText}>Save Budget</Text>
-              </Pressable>
-            </View>
-          ))}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      backgroundColor: item.category_color,
+                    }}
+                  />
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
+                    {item.category_name}
+                  </Text>
+                </View>
+
+                <LabeledInput
+                  colors={colors}
+                  label="Budget amount"
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  value={drafts[item.category_id] ?? ""}
+                  onChangeText={(value) => setDrafts((prev) => ({ ...prev, [item.category_id]: value }))}
+                />
+
+                <PillSelector
+                  options={["weekly", "monthly", "yearly"] as const}
+                  selected={cadences[item.category_id] ?? item.cadence}
+                  onSelect={(value) => setCadences((prev) => ({ ...prev, [item.category_id]: value }))}
+                  colors={colors}
+                  accentColor={item.category_color}
+                />
+
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      await onSaveBudget(
+                        item.category_id,
+                        drafts[item.category_id] ?? "0",
+                        cadences[item.category_id] ?? item.cadence
+                      );
+                      Alert.alert("Saved", "Category budget updated.");
+                    } catch (err: any) {
+                      Alert.alert("Save failed", err?.message ?? "Unknown error");
+                    }
+                  }}
+                  style={[commonStyles.button, { backgroundColor: colors.accent }]}
+                >
+                  <Text style={commonStyles.buttonText}>Save Budget</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
         </Card>
       </ScrollView>
     </SafeAreaView>

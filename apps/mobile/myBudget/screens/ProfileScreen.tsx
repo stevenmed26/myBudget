@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, TextInput } from "react-native";
+import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
+import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
+import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { BudgetProfile } from "../types";
@@ -33,27 +35,34 @@ export function ProfileScreen({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
-        <Text style={[commonStyles.title, { color: colors.text }]}>Profile</Text>
+        <View style={{ gap: 6 }}>
+          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>Settings</Text>
+          <Text style={[commonStyles.title, { color: colors.text }]}>Profile</Text>
+        </View>
 
         <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Budget Setup</Text>
+          <SectionHeader
+            colors={colors}
+            title="Budget setup"
+            subtitle="These settings apply forward through new profile versions"
+          />
 
-          <TextInput
-            placeholder="Income amount"
-            placeholderTextColor={colors.subtext}
+          <LabeledInput
+            colors={colors}
+            label="Income"
+            placeholder="0.00"
             keyboardType="decimal-pad"
             value={incomeAmount}
             onChangeText={setIncomeAmount}
-            style={[commonStyles.input, { borderColor: colors.border, color: colors.text }]}
           />
 
-          <TextInput
-            placeholder="Estimated tax rate %"
-            placeholderTextColor={colors.subtext}
+          <LabeledInput
+            colors={colors}
+            label="Estimated tax rate (%)"
+            placeholder="0.00"
             keyboardType="decimal-pad"
             value={taxRate}
             onChangeText={setTaxRate}
-            style={[commonStyles.input, { borderColor: colors.border, color: colors.text }]}
           />
 
           <PillSelector

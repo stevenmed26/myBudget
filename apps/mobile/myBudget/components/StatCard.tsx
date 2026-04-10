@@ -8,21 +8,23 @@ export function StatCard({
   label,
   value,
   valueColor,
+  elevated = false,
 }: {
   colors: ThemeColors;
   label: string;
   value: string;
   valueColor?: string;
+  elevated?: boolean;
 }) {
   return (
-    <Card colors={colors} style={{ flex: 1 }}>
-      <Text style={{ color: colors.subtext, fontSize: 13 }}>{label}</Text>
+    <Card colors={colors} elevated={elevated} style={{ flex: 1, gap: 8 }}>
+      <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: "600" }}>{label}</Text>
       <Text
         style={{
           color: valueColor ?? colors.text,
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: "700",
-          marginTop: 6,
+          letterSpacing: -0.6,
         }}
       >
         {value}

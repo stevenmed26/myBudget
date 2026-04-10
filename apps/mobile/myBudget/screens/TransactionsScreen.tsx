@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
-import { PillSelector } from "../components/PillSelector";
+import { LabeledInput } from "../components/LabeledInput";
+import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { Category, Transaction } from "../types";
@@ -40,67 +41,69 @@ export function TransactionsScreen({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
-        <Text style={[commonStyles.title, { color: colors.text }]}>Transactions</Text>
+        <View style={{ gap: 6 }}>
+          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>Activity</Text>
+          <Text style={[commonStyles.title, { color: colors.text }]}>Transactions</Text>
+        </View>
 
-        <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Quick Add Expense</Text>
-
-          <PillSelector
-            options={categories.filter((c) => c.counts_toward_budget).map((c) => c.id) as string[]}
-            selected={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
+        <Card colors={colors} elevated>
+          <SectionHeader
             colors={colors}
+            title="Add expense"
+            subtitle="Record spending quickly without leaving the flow"
           />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: "row", gap: 10 }}>
-              {categories.filter((c) => c.counts_toward_budget).map((item) => {
-                const selected = item.id === selectedCategoryId;
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => setSelectedCategoryId(item.id)}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 14,
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: selected ? item.color : colors.border,
-                      backgroundColor: selected ? item.color : colors.card,
-                    }}
-                  >
-                    <Text style={{ color: selected ? "#FFFFFF" : colors.text, fontWeight: "600" }}>
-                      {item.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {categories
+                .filter((c) => c.counts_toward_budget)
+                .map((item) => {
+                  const selected = item.id === selectedCategoryId;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => setSelectedCategoryId(item.id)}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: selected ? item.color : colors.border,
+                        backgroundColor: selected ? item.color : colors.surface,
+                      }}
+                    >
+                      <Text style={{ color: selected ? "#FFFFFF" : colors.text, fontWeight: "600" }}>
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
             </View>
           </ScrollView>
 
-          <TextInput
-            placeholder="Amount in dollars"
-            placeholderTextColor={colors.subtext}
+          <LabeledInput
+            colors={colors}
+            label="Amount"
+            placeholder="0.00"
             keyboardType="decimal-pad"
             value={amount}
             onChangeText={setAmount}
-            style={[commonStyles.input, { borderColor: colors.border, color: colors.text }]}
           />
 
-          <TextInput
-            placeholder="Merchant name (optional)"
-            placeholderTextColor={colors.subtext}
+          <LabeledInput
+            colors={colors}
+            label="Merchant"
+            placeholder="Optional"
             value={merchantName}
             onChangeText={setMerchantName}
-            style={[commonStyles.input, { borderColor: colors.border, color: colors.text }]}
           />
 
-          <TextInput
-            placeholder="Note (optional)"
-            placeholderTextColor={colors.subtext}
+          <LabeledInput
+            colors={colors}
+            label="Note"
+            placeholder="Optional"
             value={note}
             onChangeText={setNote}
-            style={[commonStyles.input, { borderColor: colors.border, color: colors.text }]}
           />
 
           <Pressable
@@ -126,50 +129,81 @@ export function TransactionsScreen({
         </Card>
 
         <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+          <SectionHeader
+            colors={colors}
+            title="Recent activity"
+            subtitle="Your latest entries for this period"
+          />
 
-          {transactions.map((item) => {
-            const category = categories.find((c) => c.id === item.category_id);
-            return (
-              <View key={item.id} style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, gap: 6 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
-                    {item.merchant_name || category?.name || "Transaction"}
-                  </Text>
-                  <Text style={{ color: item.transaction_type === "expense" ? colors.danger : colors.success, fontWeight: "700" }}>
-                    {item.transaction_type === "expense" ? "-" : "+"}
-                    {formatCents(item.amount_cents)}
-                  </Text>
-                </View>
+          <View style={{ gap: 8 }}>
+            {transactions.map((item) => {
+              const category = categories.find((c) => c.id === item.category_id);
+              const isExpense = item.transaction_type === "expense";
 
-                <Text style={{ color: colors.subtext }}>
-                  {category?.name || "Unknown category"} · {item.transaction_date}
-                </Text>
-
-                {item.note ? <Text style={{ color: colors.subtext }}>{item.note}</Text> : null}
-
-                <Pressable
-                  onPress={async () => {
-                    try {
-                      await onDeleteTransaction(item.id);
-                    } catch (err: any) {
-                      Alert.alert("Delete failed", err?.message ?? "Unknown error");
-                    }
-                  }}
+              return (
+                <View
+                  key={item.id}
                   style={{
-                    alignSelf: "flex-start",
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 999,
+                    paddingVertical: 10,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                    gap: 8,
                   }}
                 >
-                  <Text style={{ color: colors.text, fontWeight: "600" }}>Delete</Text>
-                </Pressable>
-              </View>
-            );
-          })}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <View style={{ gap: 3 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
+                        {item.merchant_name || category?.name || "Transaction"}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                        {category?.name || "Unknown category"} · {item.transaction_date}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={{
+                        color: isExpense ? colors.danger : colors.success,
+                        fontSize: 16,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {isExpense ? "-" : "+"}
+                      {formatCents(item.amount_cents)}
+                    </Text>
+                  </View>
+
+                  {item.note ? (
+                    <Text style={{ color: colors.textSoft, fontSize: 13 }}>{item.note}</Text>
+                  ) : null}
+
+                  <Pressable
+                    onPress={async () => {
+                      try {
+                        await onDeleteTransaction(item.id);
+                      } catch (err: any) {
+                        Alert.alert("Delete failed", err?.message ?? "Unknown error");
+                      }
+                    }}
+                    style={{
+                      alignSelf: "flex-start",
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 999,
+                      backgroundColor: colors.dangerSoft,
+                    }}
+                  >
+                    <Text style={{ color: colors.danger, fontWeight: "700" }}>Delete</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
         </Card>
       </ScrollView>
     </SafeAreaView>

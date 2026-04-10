@@ -1,6 +1,7 @@
 import React from "react";
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
+import { SectionHeader } from "../components/SectionHeader";
 import { StatCard } from "../components/StatCard";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
@@ -22,61 +23,171 @@ export function AnalyticsScreen({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
-        <Text style={[commonStyles.title, { color: colors.text }]}>Analytics</Text>
+        <View style={{ gap: 6 }}>
+          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>Insights</Text>
+          <Text style={[commonStyles.title, { color: colors.text }]}>Analytics</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 15 }}>
+            A cleaner view of how your money is moving
+          </Text>
+        </View>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <StatCard
             colors={colors}
-            label="Saved Total"
+            label="Saved total"
             value={formatCents(analytics?.total_saved_cents ?? 0)}
             valueColor={colors.success}
+            elevated
           />
           <StatCard
             colors={colors}
-            label="Expenses Total"
+            label="Expense total"
             value={formatCents(analytics?.total_expenses_cents ?? 0)}
             valueColor={colors.danger}
+            elevated
           />
         </View>
 
-        <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Category Breakdown</Text>
-          {analytics?.category_breakdown.map((item) => (
+        <Card colors={colors} elevated>
+          <SectionHeader
+            colors={colors}
+            title="Income vs spending"
+            subtitle="High-level totals across your tracked data"
+          />
+
+          <View style={{ gap: 14 }}>
             <View
-              key={item.category_id}
               style={{
-                borderTopWidth: 1,
-                borderTopColor: colors.border,
-                paddingTop: 12,
                 flexDirection: "row",
                 justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              <Text style={{ color: colors.text }}>{item.category_name}</Text>
-              <Text style={{ color: colors.text, fontWeight: "700" }}>
-                {formatCents(item.amount_cents)}
+              <Text style={{ color: colors.textSoft, fontSize: 15 }}>Income</Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+                {formatCents(analytics?.total_income_cents ?? 0)}
               </Text>
             </View>
-          ))}
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: colors.textSoft, fontSize: 15 }}>Expenses</Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+                {formatCents(analytics?.total_expenses_cents ?? 0)}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                height: 10,
+                backgroundColor: colors.bgSecondary,
+                borderRadius: 999,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  width:
+                    analytics && analytics.total_income_cents > 0
+                      ? `${Math.min(
+                          100,
+                          (analytics.total_expenses_cents * 100) / analytics.total_income_cents
+                        )}%`
+                      : "0%",
+                  height: "100%",
+                  backgroundColor: colors.accent,
+                  borderRadius: 999,
+                }}
+              />
+            </View>
+          </View>
         </Card>
 
         <Card colors={colors}>
-          <Text style={[commonStyles.sectionTitle, { color: colors.text }]}>Monthly Trend</Text>
-          {analytics?.monthly_trend.map((point) => (
-            <View
-              key={point.label}
-              style={{
-                borderTopWidth: 1,
-                borderTopColor: colors.border,
-                paddingTop: 12,
-                gap: 4,
-              }}
-            >
-              <Text style={{ color: colors.text, fontWeight: "600" }}>{point.label}</Text>
-              <Text style={{ color: colors.subtext }}>Income: {formatCents(point.income_cents)}</Text>
-              <Text style={{ color: colors.subtext }}>Expense: {formatCents(point.expense_cents)}</Text>
-            </View>
-          ))}
+          <SectionHeader
+            colors={colors}
+            title="Spending by category"
+            subtitle="Where most of your expenses have gone"
+          />
+
+          <View style={{ gap: 12 }}>
+            {analytics?.category_breakdown.map((item) => (
+              <View
+                key={item.category_id}
+                style={{
+                  paddingVertical: 6,
+                  gap: 8,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 999,
+                        backgroundColor: item.color,
+                      }}
+                    />
+                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: "600" }}>
+                      {item.category_name}
+                    </Text>
+                  </View>
+
+                  <Text style={{ color: colors.text, fontWeight: "700" }}>
+                    {formatCents(item.amount_cents)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </Card>
+
+        <Card colors={colors}>
+          <SectionHeader
+            colors={colors}
+            title="Monthly trend"
+            subtitle="Recent income and expense activity"
+          />
+
+          <View style={{ gap: 14 }}>
+            {analytics?.monthly_trend.map((point) => (
+              <View
+                key={point.label}
+                style={{
+                  paddingVertical: 4,
+                  gap: 6,
+                }}
+              >
+                <Text style={{ color: colors.text, fontWeight: "600", fontSize: 15 }}>
+                  {point.label}
+                </Text>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ color: colors.textMuted }}>Income</Text>
+                  <Text style={{ color: colors.textSoft, fontWeight: "600" }}>
+                    {formatCents(point.income_cents)}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ color: colors.textMuted }}>Expenses</Text>
+                  <Text style={{ color: colors.textSoft, fontWeight: "600" }}>
+                    {formatCents(point.expense_cents)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </Card>
       </ScrollView>
     </SafeAreaView>
