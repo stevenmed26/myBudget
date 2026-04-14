@@ -12,6 +12,20 @@ const API_BASE_URL = "http://192.168.1.10:8080/api/v1";
 // iPhone const API_BASE_URL = "http://127.0.0.1:8080/api/v1";
 // Android const API_BASE_URL = "http://10.0.2.2:8080/api/v1";
 
+let authToken : string | null = null;
+
+export function setApiAuthToken(token: string | null) {
+  authToken = token;
+}
+
+function buildHeaders(extra?: Record<string, string>) {
+  return {
+    "Content-Type": "application/json",
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(extra ?? {}),
+  };
+}
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
@@ -21,13 +35,17 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(`${API_BASE_URL}/categories`);
+  const res = await fetch(`${API_BASE_URL}/categories`, {
+    headers: buildHeaders(),
+  });
   const data = await handle<{ categories: Category[] }>(res);
   return data.categories;
 }
 
 export async function fetchTransactions(): Promise<Transaction[]> {
-  const res = await fetch(`${API_BASE_URL}/transactions`);
+  const res = await fetch(`${API_BASE_URL}/transactions`, {
+    headers: buildHeaders(),
+  });
   const data = await handle<{ transactions: Transaction[] }>(res);
   return data.transactions;
 }
@@ -42,7 +60,7 @@ export async function createTransaction(input: {
 }) {
   const res = await fetch(`${API_BASE_URL}/transactions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
   return handle<Transaction>(res);
@@ -51,12 +69,15 @@ export async function createTransaction(input: {
 export async function deleteTransaction(transactionID: string) {
   const res = await fetch(`${API_BASE_URL}/transactions/${transactionID}`, {
     method: "DELETE",
+    headers: buildHeaders(),
   });
   return handle<{ deleted: boolean }>(res);
 }
 
 export async function fetchProfile(): Promise<BudgetProfile> {
-  const res = await fetch(`${API_BASE_URL}/profile`);
+  const res = await fetch(`${API_BASE_URL}/profile`, {
+    headers: buildHeaders(),
+  });
   return handle<BudgetProfile>(res);
 }
 
@@ -74,19 +95,23 @@ export async function updateProfile(input: {
 }) {
   const res = await fetch(`${API_BASE_URL}/profile`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
   return handle<BudgetProfile>(res);
 }
 
 export async function fetchHomeSummary(): Promise<HomeSummary> {
-  const res = await fetch(`${API_BASE_URL}/home/summary`);
+  const res = await fetch(`${API_BASE_URL}/home/summary`, {
+    headers: buildHeaders(),
+  });
   return handle<HomeSummary>(res);
 }
 
 export async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
-  const res = await fetch(`${API_BASE_URL}/category-budgets`);
+  const res = await fetch(`${API_BASE_URL}/category-budgets`, {
+    headers: buildHeaders(),
+  });
   const data = await handle<{ category_budgets: CategoryBudget[] }>(res);
   return data.category_budgets;
 }
@@ -99,7 +124,7 @@ export async function upsertCategoryBudget(input: {
 }) {
   const res = await fetch(`${API_BASE_URL}/category-budgets`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
   return handle<CategoryBudget>(res);
@@ -108,11 +133,14 @@ export async function upsertCategoryBudget(input: {
 export async function closeCurrentPeriod(): Promise<ClosePeriodResponse> {
   const res = await fetch(`${API_BASE_URL}/periods/close-current`, {
     method: "POST",
+    headers: buildHeaders(),
   });
   return handle<ClosePeriodResponse>(res);
 }
 
 export async function fetchAnalyticsSummary(): Promise<AnalyticsSummary> {
-  const res = await fetch(`${API_BASE_URL}/analytics/summary`);
+  const res = await fetch(`${API_BASE_URL}/analytics/summary`, {
+    headers: buildHeaders(),
+  });
   return handle<AnalyticsSummary>(res);
 }
