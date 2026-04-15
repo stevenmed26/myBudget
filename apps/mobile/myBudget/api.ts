@@ -6,9 +6,11 @@ import {
   ClosePeriodResponse,
   HomeSummary,
   Transaction,
+  AuthUser,
+  AuthResponse,
 } from "./types";
 
-const API_BASE_URL = "http://192.168.1.10:8080/api/v1";
+const API_BASE_URL = "http://localhost:8080/api/v1";
 // iPhone const API_BASE_URL = "http://127.0.0.1:8080/api/v1";
 // Android const API_BASE_URL = "http://10.0.2.2:8080/api/v1";
 
@@ -143,4 +145,38 @@ export async function fetchAnalyticsSummary(): Promise<AnalyticsSummary> {
     headers: buildHeaders(),
   });
   return handle<AnalyticsSummary>(res);
+}
+
+export async function register(input: { email: string; password: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<AuthResponse>(res);
+}
+
+export async function login(input: { email: string; password: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<AuthResponse>(res);
+}
+
+export async function refreshAccessToken(input: { email: string; password: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<AuthResponse>(res);
+}
+
+export async function fetchMe() {
+  const res = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: buildHeaders(),
+  });
+  return handle<AuthResponse>(res);
 }

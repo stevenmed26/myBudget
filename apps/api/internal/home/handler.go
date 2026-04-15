@@ -1,8 +1,9 @@
 package home
 
 import (
-	"mybudget-api/internal/httpx"
 	"net/http"
+
+	"mybudget-api/internal/httpx"
 )
 
 type Handler struct {
@@ -16,8 +17,9 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	item, err := h.service.BuildHomeSummary(r.Context())
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "home summary failed", err, "failed to build home summary")
 		return
 	}
+
 	httpx.WriteJSON(w, http.StatusOK, item)
 }

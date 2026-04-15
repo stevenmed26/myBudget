@@ -8,42 +8,42 @@ import (
 
 type Handler struct {
 	service *Service
-	repo *Repository
+	repo    *Repository
 }
 
 func NewHandler(service *Service, repo *Repository) *Handler {
 	return &Handler{
 		service: service,
-		repo: repo,
+		repo:    repo,
 	}
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
-	if err := httpx.DecodeJSON(r.Body, &req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	resp, err := h.service.Register(r.Context(), req)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusBadRequest, "failed to register user")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, resp)
+	httpx.WriteJSON(w, http.StatusCreated, resp)
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
-	if err := httpx.DecodeJSON(r.Body, &req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	resp, err := h.service.Login(r.Context(), req)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
 
@@ -52,14 +52,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req RefreshRequest
-	if err := httpx.DecodeJSON(r.Body, &req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "refresh_token is required")
 		return
 	}
 
-	resp, err := h.service.Refresh(r.Context(), req)
+	resp, err := h.service.Refresh(r.Context(), req.RefreshToken)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
-	userId, ok := UserIDFromContext(r.Context())
+	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
 		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -80,7 +80,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, AuthUserDTO{
-		ID: user.ID,
+		ID:    user.ID,
 		Email: user.Email,
 	})
 }

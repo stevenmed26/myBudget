@@ -62,7 +62,7 @@ export function TransactionsScreen({
           />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={commonStyles.chipRow}>
+            <View style={{ flexDirection: "row", gap: 10 }}>
               {selectableCategories.map((item) => {
                 const selected = item.id === selectedCategoryId;
 

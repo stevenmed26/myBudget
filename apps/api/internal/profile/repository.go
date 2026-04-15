@@ -2,7 +2,9 @@ package profile
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"mybudget-api/internal/db"
 )
 
@@ -54,6 +56,9 @@ func (r *Repository) GetCurrentByUser(ctx context.Context, userID string) (*Budg
 		&p.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
@@ -101,6 +106,9 @@ func (r *Repository) GetVersionForDate(ctx context.Context, userID string, onDat
 		&p.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

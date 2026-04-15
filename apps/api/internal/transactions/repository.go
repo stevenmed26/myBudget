@@ -60,7 +60,7 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateTransa
 	const q = `
 		INSERT INTO transactions (
 			user_id, category_id, amount_cents, transaction_type,
-			transaction_date::text, merchant_name, note, source
+			transaction_date, merchant_name, note, source
 		)
 		VALUES ($1, $2, $3, $4, $5::date, $6, $7, 'manual')
 		RETURNING
@@ -103,7 +103,7 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateTransa
 func (r *Repository) SoftDelete(ctx context.Context, userID, transactionID string) error {
 	const q = `
 		UPDATE transactions
-		SET deleted_at = NOW()
+		SET deleted_at = NOW(), updated_at = NOW()
 		WHERE id = $1
 			AND user_id = $2
 			AND deleted_at IS NULL

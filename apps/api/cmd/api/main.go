@@ -32,17 +32,17 @@ func main() {
 	categoryRepo := categories.NewRepository(database)
 	categoryHandler := categories.NewHandler(categoryRepo)
 
-	transactionRepo := transactions.NewRepository(database)
-	transactionHandler := transactions.NewHandler(transactionRepo)
-
-	dashboardRepo := dashboard.NewRepository(database)
-	dashboardHandler := dashboard.NewHandler(dashboardRepo)
-
 	profileRepo := profile.NewRepository(database)
 	profileHandler := profile.NewHandler(profileRepo)
 
+	transactionRepo := transactions.NewRepository(database)
+	transactionHandler := transactions.NewHandler(transactionRepo, categoryRepo)
+
+	dashboardRepo := dashboard.NewRepository(database)
+	dashboardHandler := dashboard.NewHandler(dashboardRepo, profileRepo)
+
 	categoryBudgetRepo := categorybudgets.NewRepository(database)
-	categoryBudgetHandler := categorybudgets.NewHandler(categoryBudgetRepo)
+	categoryBudgetHandler := categorybudgets.NewHandler(categoryBudgetRepo, categoryRepo)
 
 	homeRepo := home.NewRepository(database)
 	homeService := home.NewService(homeRepo, profileRepo)
@@ -101,7 +101,6 @@ func main() {
 
 			r.Get("/analytics/summary", analyticsHandler.Summary)
 		})
-		
 	})
 
 	addr := ":" + cfg.APIPort

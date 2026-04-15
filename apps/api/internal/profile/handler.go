@@ -20,9 +20,14 @@ func NewHandler(repo *Repository) *Handler {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	item, err := h.repo.GetCurrentByUser(r.Context(), auth.UserIDFromContext(r.Context()))
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	item, err := h.repo.GetCurrentByUser(r.Context(), userID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to load profile")
 		return
 	}
 
@@ -30,9 +35,14 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 	var req UpdateBudgetProfileRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -90,9 +100,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	effectiveFrom := time.Now().Format("2006-01-02")
 
-	item, err := h.repo.InsertNewVersion(r.Context(), auth.UserIDFromContext(r.Context()), req, effectiveFrom)
+	item, err := h.repo.InsertNewVersion(r.Context(), userID, req, effectiveFrom)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to update profile")
 		return
 	}
 

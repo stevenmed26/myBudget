@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -22,14 +23,17 @@ func UserIDFromContext(ctx context.Context) (string, bool) {
 func RequireAuth(accessSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := strings.TrimSpace((r.Header.Get("Authorization"))
-			if !string.HasPrefix(authHeader, "Bearer ") {
+			authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+			if !strings.HasPrefix(authHeader, "Bearer ") {
 				httpx.WriteError(w, http.StatusUnauthorized, "missing bearer token")
 				return
 			}
 
 			rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 			token, err := jwt.Parse(rawToken, func(token *jwt.Token) (any, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method")
+				}
 				return []byte(accessSecret), nil
 			})
 			if err != nil || !token.Valid {
@@ -42,6 +46,7 @@ func RequireAuth(accessSecret string) func(http.Handler) http.Handler {
 				httpx.WriteError(w, http.StatusUnauthorized, "invalid token claims")
 				return
 			}
+
 			tokenType, _ := claims["type"].(string)
 			if tokenType != "access" {
 				httpx.WriteError(w, http.StatusUnauthorized, "invalid token type")

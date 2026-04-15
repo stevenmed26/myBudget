@@ -3,6 +3,8 @@ package home
 import (
 	"context"
 	"mybudget-api/internal/db"
+	"errors"
+	"github.com/jackc/pgx/v5"
 )
 
 type Repository struct {
@@ -41,6 +43,9 @@ func (r *Repository) GetProfileInputs(ctx context.Context, userID string) (*prof
 		&row.EstimatedTaxRateBps,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &row, nil
@@ -84,8 +89,8 @@ func (r *Repository) GetCategorySpendRows(ctx context.Context, userID, startDate
 		    c.id,
 			c.name,
 			c.color,
-			c.count_toward_budget,
-			COALESCE(ab.amount_cents, 0) AD budget_amount_cents,
+			c.counts_toward_budget,
+			COALESCE(ab.amount_cents, 0) AS budget_amount_cents,
 			ab.cadence,
 			COALESCE(s.spent_amount_cents, 0) AS spent_amount_cents
 		FROM categories c

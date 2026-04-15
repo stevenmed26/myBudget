@@ -1,38 +1,65 @@
 package dashboard
 
 import (
-	"mybudget-api/internal/httpx"
-	"mybudget-api/internal/periods"
-	"mybudget-api/internal/auth"
 	"net/http"
 	"time"
+
+	"mybudget-api/internal/auth"
+	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/periods"
+	"mybudget-api/internal/profile"
 )
 
 type Handler struct {
-	repo       *Repository
+	repo        *Repository
+	profileRepo *profile.Repository
 }
 
-func NewHandler(repo *Repository) *Handler {
+func NewHandler(repo *Repository, profileRepo *profile.Repository) *Handler {
 	return &Handler{
-		repo:       repo,
+		repo:        repo,
+		profileRepo: profileRepo,
 	}
 }
 
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
 	if startDate == "" || endDate == "" {
-		current := periods.GetCurrentPeriod(time.Now(), "weekly", 1, 1)
+		p, err := h.profileRepo.GetCurrentByUser(r.Context(), userID)
+		if err != nil {
+			httpx.WriteInternalError(w, "dashboard summary profile lookup failed", err, "failed to load dashboard summary")
+			return
+		}
+		if p == nil {
+			httpx.WriteError(w, http.StatusBadRequest, "no active profile found")
+			return
+		}
+
+		now := time.Now()
+		if p.Timezone != "" {
+			if loc, err := time.LoadLocation(p.Timezone); err == nil {
+				now = now.In(loc)
+			}
+		}
+
+		current := periods.GetCurrentPeriod(now, p.TrackingCadence, p.WeekStartsOn, p.MonthlyAnchorDay)
 		startDate = current.StartDate
 		endDate = current.EndDate
 	}
 
-	summary, err := h.repo.SummaryForRange(r.Context(), auth.UserIDFromContext(r.Context()), startDate, endDate)
+	item, err := h.repo.GetSummary(r.Context(), userID, startDate, endDate)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "dashboard summary failed", err, "failed to load dashboard summary")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, summary)
+	httpx.WriteJSON(w, http.StatusOK, item)
 }

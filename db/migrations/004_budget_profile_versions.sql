@@ -1,7 +1,7 @@
-CREATE TABLE IF NOT EXISTS budget_profiles (
+CREATE TABLE IF NOT EXISTS budget_profile_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    tracking_cadence TEXT NOT NULL CHECK (tracking_cadence IN ('weekly', 'monthly', 'yearly')),
+    tracking_cadence TEXT NOT NULL CHECK (tracking_cadence IN ('weekly', 'monthly')),
     week_starts_on INTEGER NOT NULL CHECK (week_starts_on BETWEEN 0 AND 6),
     monthly_anchor_day INTEGER NOT NULL CHECK (monthly_anchor_day BETWEEN 1 AND 28),
     currency_code TEXT NOT NULL DEFAULT 'USD',
@@ -31,7 +31,7 @@ INSERT INTO budget_profile_versions (
     income_cadence,
     location_code,
     estimated_tax_rate_bps,
-    effective_from,
+    effective_from
 )
 SELECT
     user_id,
@@ -46,9 +46,9 @@ SELECT
     location_code,
     estimated_tax_rate_bps,
     CURRENT_DATE
-FROM budget_profiles
+FROM budget_profiles bp
 WHERE NOT EXISTS (
     SELECT 1
     FROM budget_profile_versions bpv
-    WHERE bpv.user_id = budger_profiles.user_id
+    WHERE bpv.user_id = bp.user_id
 );

@@ -105,3 +105,14 @@ export type AnalyticsSummary = {
   category_breakdown: AnalyticsCategorySlice[];
   monthly_trend: AnalyticsTrendPoint[];
 };
+
+export type AuthUser = {
+  id: string;
+  email: string;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  refresh_token: string;
+  user: AuthUser;
+};

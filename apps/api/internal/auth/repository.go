@@ -17,6 +17,20 @@ func NewRepository(db *db.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) EmailExists(ctx context.Context, email string) (bool, error) {
+	const q = `
+		SELECT EXISTS (
+			SELECT 1
+			FROM users
+			WHERE LOWER(email) = LOWER($1)
+		)
+	`
+
+	var exists bool
+	err := r.db.Pool.QueryRow(ctx, q, email).Scan(&exists)
+	return exists, err
+}
+
 func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*UserRecord, error) {
 	const q = `
 		SELECT id, email, password_hash
@@ -57,13 +71,13 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 	defer tx.Rollback(ctx)
 
 	const createUser = `
-	    INSERT INTO users (id, email, password_hash)
+		INSERT INTO users (id, email, password_hash)
 		VALUES (gen_random_uuid(), $1, $2)
 		RETURNING id, email, password_hash
 	`
 
 	var u UserRecord
-	err = tx.QueryRow(ctx, createUser, email, passwordHash).Scan(&u.ID, &u.Email, &u.PasswordHash); err != nil {
+	if err := tx.QueryRow(ctx, createUser, email, passwordHash).Scan(&u.ID, &u.Email, &u.PasswordHash); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +90,6 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0)
 		ON CONFLICT (user_id) DO NOTHING
 	`
-
 	if _, err := tx.Exec(ctx, createProfile, u.ID); err != nil {
 		return nil, err
 	}
@@ -86,7 +99,7 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 			user_id, tracking_cadence, week_starts_on, monthly_anchor_day,
 			currency_code, locale, timezone,
 			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
-			effective_fron
+			effective_from
 		)
 		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0, CURRENT_DATE)
 	`
@@ -99,12 +112,11 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 		VALUES
 			($1, 'Food', '#F97316', TRUE, TRUE, FALSE),
 			($1, 'Savings', '#22C55E', TRUE, TRUE, FALSE),
-			($1, 'Saved', '#14B8A6', TRUE, TRUE, TRUE),
+			($1, 'Saved', '#14B8A6', TRUE, FALSE, TRUE),
 			($1, 'Tax', '#EF4444', TRUE, TRUE, TRUE),
 			($1, 'Housing', '#6366F1', TRUE, TRUE, FALSE)
-		ON CONFLICT (user_id, name) DO NOTHING	
+		ON CONFLICT (user_id, name) DO NOTHING
 	`
-
 	if _, err := tx.Exec(ctx, seedCategories, u.ID); err != nil {
 		return nil, err
 	}
@@ -117,7 +129,6 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 }
 
 func hashToken(raw string) string {
-	// For security, hash token before storing
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }
@@ -136,8 +147,9 @@ func (r *Repository) FindValidRefreshToken(ctx context.Context, rawToken string)
 		SELECT user_id
 		FROM refresh_tokens
 		WHERE token_hash = $1
-			AND revoked_at IS NULL
-			AND expires_at > NOW()
+		  AND revoked_at IS NULL
+		  AND expires_at > NOW()
+		ORDER BY created_at DESC
 		LIMIT 1
 	`
 
@@ -151,9 +163,8 @@ func (r *Repository) RevokeRefreshToken(ctx context.Context, rawToken string) er
 		UPDATE refresh_tokens
 		SET revoked_at = NOW()
 		WHERE token_hash = $1
-			AND revoked_at IS NULL
+		  AND revoked_at IS NULL
 	`
-
-	_, err := r.Pool.Exec(ctx, q, hashToken(rawToken))
+	_, err := r.db.Pool.Exec(ctx, q, hashToken(rawToken))
 	return err
 }

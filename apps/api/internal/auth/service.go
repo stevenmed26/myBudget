@@ -15,19 +15,19 @@ import (
 
 type Service struct {
 	repo *Repository
-	cfg config.Config
+	cfg  config.Config
 }
 
 func NewService(repo *Repository, cfg config.Config) *Service {
 	return &Service{
 		repo: repo,
-		cfg: cfg,
+		cfg:  cfg,
 	}
 }
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	email := strings.TrimSpace(strings.ToLower(req.Email))
-	password := strings.TrimSpace(req.Password)
+	password := req.Password
 
 	if email == "" || password == "" {
 		return nil, errors.New("email and password are required")
@@ -36,7 +36,11 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 		return nil, errors.New("password must be at least 8 characters")
 	}
 
-	if _, err := s.repo.GetUserByEmail(ctx, email); err == nil {
+	exists, err := s.repo.EmailExists(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
 		return nil, errors.New("email already registered")
 	}
 
@@ -55,14 +59,17 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
 	email := strings.TrimSpace(strings.ToLower(req.Email))
-	password := strings.TrimSpace(req.Password)
+	password := req.Password
 
 	if email == "" || password == "" {
 		return nil, errors.New("email and password are required")
 	}
 
-	user, err := s.repo.GetUserByEmail(ctx, email); err == nil {
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
+		return nil, errors.New("invalid email or password")
+	}
+	if user.PasswordHash == nil {
 		return nil, errors.New("invalid email or password")
 	}
 
@@ -104,22 +111,22 @@ func (s *Service) issueTokens(ctx context.Context, user *UserRecord) (*AuthRespo
 	refreshExp := now.Add(time.Duration(refreshTTLDays) * 24 * time.Hour)
 
 	accessClaims := jwt.MapClaims{
-		"sub": user.ID,
+		"sub":   user.ID,
 		"email": user.Email,
-		"exp": accessExp.Unix(),
-		"iat": now.Unix(),
-		"type": "access",
+		"exp":   accessExp.Unix(),
+		"iat":   now.Unix(),
+		"type":  "access",
 	}
-	accessToken := jwt.NetWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccess, err := accessToken.SignedString([]byte(s.cfg.JWTAccessSecret))
 	if err != nil {
 		return nil, err
 	}
 
 	refreshClaims := jwt.MapClaims{
-		"sub": user.ID,
-		"exp": refreshExp.Unix(),
-		"iat": now.Unix(),
+		"sub":  user.ID,
+		"exp":  refreshExp.Unix(),
+		"iat":  now.Unix(),
 		"type": "refresh",
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
@@ -128,17 +135,16 @@ func (s *Service) issueTokens(ctx context.Context, user *UserRecord) (*AuthRespo
 		return nil, err
 	}
 
-	if err := s.repo.StoreRefreshToken(ctx, user.ID, signedRefresh, refreshExp); err != nil {
+	if err := s.repo.InsertRefreshToken(ctx, user.ID, signedRefresh, refreshExp); err != nil {
 		return nil, err
 	}
 
 	return &AuthResponse{
-		AccessToken: signedAccess,
+		AccessToken:  signedAccess,
 		RefreshToken: signedRefresh,
 		User: AuthUserDTO{
-			ID: user.ID,
+			ID:    user.ID,
 			Email: user.Email,
-		}
+		},
 	}, nil
 }
-

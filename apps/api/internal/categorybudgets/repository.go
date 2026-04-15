@@ -24,14 +24,14 @@ func (r *Repository) ListActiveByUser(ctx context.Context, userID string, onDate
 			cb.cadence,
 			cb.effective_from::text,
 			cb.effective_to::text,
-			cb.created_at,
+			cb.created_at
 		FROM category_budgets cb
 		INNER JOIN categories c ON c.id = cb.category_id
 		WHERE c.user_id = $1
 		    AND c.archived_at IS NULL
 			AND cb.effective_from <= $2::date
 			AND (cb.effective_to IS NULL OR cb.effective_to >= $2::date)
-		ORDER BY c.name ADC, cb.effective_from DESC
+		ORDER BY c.name ASC, cb.effective_from DESC
 	`
 
 	rows, err := r.db.Pool.Query(ctx, q, userID, onDate)
@@ -110,7 +110,7 @@ func (r *Repository) UpsertNewVersion(ctx context.Context, req UpsertCategoryBud
 		WHERE id = $1
 	`
 
-	if err := tx.QueryRow(ctx, categoryQ, item.CategoryID).Scan(&item.CategoryColor, &item.CategoryName); err != nil {
+	if err := tx.QueryRow(ctx, categoryQ, item.CategoryID).Scan(&item.CategoryName, &item.CategoryColor); err != nil {
 		return nil, err
 	}
 

@@ -2,6 +2,7 @@ package home
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"mybudget-api/internal/auth"
@@ -23,24 +24,42 @@ func NewService(repo *Repository, profileRepo *profile.Repository) *Service {
 }
 
 func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
-	currentProfile, err := s.profileRepo.GetCurrentByUser(ctx, auth.UserIDFromContext(r.Context()))
+	userID, ok := auth.UserIDFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("unauthorized")
+	}
+
+	currentProfile, err := s.profileRepo.GetCurrentByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
+	if currentProfile == nil {
+		return nil, fmt.Errorf("no budget profile version found for user")
+	}
+
+	now := time.Now()
+	if currentProfile.Timezone != "" {
+		if loc, err := time.LoadLocation(currentProfile.Timezone); err == nil {
+			now = now.In(loc)
+		}
+	}
 
 	current := periods.GetCurrentPeriod(
-		time.Now(),
+		now,
 		currentProfile.TrackingCadence,
 		currentProfile.WeekStartsOn,
 		currentProfile.MonthlyAnchorDay,
 	)
 
-	activeProfile, err := s.profileRepo.GetVersionForDate(ctx, auth.UserIDFromContext(r.Context()), current.StartDate)
+	activeProfile, err := s.profileRepo.GetVersionForDate(ctx, userID, current.StartDate)
 	if err != nil {
 		return nil, err
 	}
+	if activeProfile == nil {
+		return nil, fmt.Errorf("no active budget profile version found for current period")
+	}
 
-	categoryRows, err := s.repo.GetCategorySpendRows(ctx, auth.UserIDFromContext(r.Context()), current.StartDate, current.EndDate)
+	categoryRows, err := s.repo.GetCategorySpendRows(ctx, userID, current.StartDate, current.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +114,7 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 	}
 
 	return &HomeSummary{
+		UserID:                userID,
 		PeriodStart:           current.StartDate,
 		PeriodEnd:             current.EndDate,
 		TrackingCadence:       activeProfile.TrackingCadence,
