@@ -8,18 +8,28 @@ import (
 )
 
 type Config struct {
-	APIPort     string
-	DatabaseURL string
-	DemoUserID  string
+	APIPort                string
+	DatabaseURL            string
+	JWTAccessSecret        string
+	JWTRefreshSecret       string
+	AccessTokenTTLMinutes  string
+	RefreshTokenTTLMinutes string
 }
 
 func Load() Config {
 	_ = godotenv.Load()
 
 	cfg := Config{
-		APIPort:     getEnv("API_PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/mybudget?sslmode=disable"),
-		DemoUserID:  getEnv("DEMO_USER_ID", "11111111-1111-1111-1111-111111111111"),
+		APIPort:                getEnv("API_PORT", "8080"),
+		DatabaseURL:            getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/mybudget?sslmode=disable"),
+		JWTAccessSecret:        getEnv("JWT_ACCESS_SECRET", "dev-access-secret-change-me"),
+		JWTRefreshSecret:       getEnv("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me"),
+		AccessTokenTTLMinutes:  getEnv("ACCESS_TOKEN_TTL_MINUTES", "15"),
+		RefreshTokenTTLMinutes: getEnv("REFRESH_TOKEN_TTL_DAYS", "30"),
+	}
+
+	if cfg.DatabaseURL == "" {
+		log.Fatal("DATABASE_URL is required")
 	}
 	return cfg
 }

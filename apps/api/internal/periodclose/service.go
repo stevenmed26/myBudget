@@ -7,19 +7,18 @@ import (
 
 	"mybudget-api/internal/home"
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/auth"
 )
 
 type Service struct {
 	repo        *Repository
 	homeService *home.Service
-	demoUserID  string
 }
 
-func NewService(repo *Repository, homeService *home.Service, demoUserID string) *Service {
+func NewService(repo *Repository, homeService *home.Service) *Service {
 	return &Service{
 		repo:        repo,
 		homeService: homeService,
-		demoUserID:  demoUserID,
 	}
 }
 
@@ -31,7 +30,7 @@ func (s *Service) CloseCurrentPeriod(ctx context.Context) (*ClosePeriodResponse,
 
 	periodRow, err := s.repo.GetOrCreatePeriod(
 		ctx,
-		s.demoUserID,
+		auth.UserIDFromContext(r.Context()),
 		homeSummary.PeriodStart,
 		homeSummary.PeriodEnd,
 		homeSummary.TrackingCadence,
@@ -60,7 +59,7 @@ func (s *Service) CloseCurrentPeriod(ctx context.Context) (*ClosePeriodResponse,
 	var savedTransactionID *string
 
 	if leftover > 0 {
-		savedCategoryID, err := s.repo.GetSavedCategoryID(ctx, s.demoUserID)
+		savedCategoryID, err := s.repo.GetSavedCategoryID(ctx, auth.UserIDFromContext(r.Context()))
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +71,7 @@ func (s *Service) CloseCurrentPeriod(ctx context.Context) (*ClosePeriodResponse,
 		)
 		id, err := s.repo.InsertSavedRolloverTransaction(
 			ctx,
-			s.demoUserID,
+			auth.UserIDFromContext(r.Context()),
 			savedCategoryID,
 			leftover,
 			homeSummary.PeriodEnd,

@@ -3,19 +3,18 @@ package dashboard
 import (
 	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/auth"
 	"net/http"
 	"time"
 )
 
 type Handler struct {
 	repo       *Repository
-	demoUserID string
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository) *Handler {
 	return &Handler{
 		repo:       repo,
-		demoUserID: demoUserID,
 	}
 }
 
@@ -29,7 +28,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		endDate = current.EndDate
 	}
 
-	summary, err := h.repo.SummaryForRange(r.Context(), h.demoUserID, startDate, endDate)
+	summary, err := h.repo.SummaryForRange(r.Context(), auth.UserIDFromContext(r.Context()), startDate, endDate)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

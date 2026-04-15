@@ -6,22 +6,21 @@ import (
 	"time"
 
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/auth"
 )
 
 type Handler struct {
 	repo       *Repository
-	demoUserID string
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository) *Handler {
 	return &Handler{
 		repo:       repo,
-		demoUserID: demoUserID,
 	}
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	item, err := h.repo.GetCurrentByUser(r.Context(), h.demoUserID)
+	item, err := h.repo.GetCurrentByUser(r.Context(), auth.UserIDFromContext(r.Context()))
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -91,7 +90,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	effectiveFrom := time.Now().Format("2006-01-02")
 
-	item, err := h.repo.InsertNewVersion(r.Context(), h.demoUserID, req, effectiveFrom)
+	item, err := h.repo.InsertNewVersion(r.Context(), auth.UserIDFromContext(r.Context()), req, effectiveFrom)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

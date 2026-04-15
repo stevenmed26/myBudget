@@ -2,6 +2,7 @@ package categorybudgets
 
 import (
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/auth"
 	"net/http"
 	"strings"
 	"time"
@@ -9,13 +10,11 @@ import (
 
 type Handler struct {
 	repo       *Repository
-	demoUserID string
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository) *Handler {
 	return &Handler{
 		repo:       repo,
-		demoUserID: demoUserID,
 	}
 }
 
@@ -25,7 +24,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		onDate = time.Now().Format("2006-01-02")
 	}
 
-	items, err := h.repo.ListActiveByUser(r.Context(), h.demoUserID, onDate)
+	items, err := h.repo.ListActiveByUser(r.Context(), auth.UserIDFromContext(r.Context()), onDate)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

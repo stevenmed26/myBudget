@@ -3,6 +3,7 @@ package transactions
 import (
 	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/auth"
 	"net/http"
 	"strings"
 	"time"
@@ -12,13 +13,12 @@ import (
 
 type Handler struct {
 	repo       *Repository
-	demoUserID string
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository) *Handler {
 	return &Handler{
 		repo:       repo,
-		demoUserID: demoUserID,
+
 	}
 }
 
@@ -32,7 +32,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		endDate = current.EndDate
 	}
 
-	items, err := h.repo.ListByUserAndDateRange(r.Context(), h.demoUserID, startDate, endDate)
+	items, err := h.repo.ListByUserAndDateRange(r.Context(), auth.UserIDFromContext(r.Context()), startDate, endDate)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -69,7 +69,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		req.TransactionDate = time.Now().Format("2006-01-02")
 	}
 
-	item, err := h.repo.Create(r.Context(), h.demoUserID, req)
+	item, err := h.repo.Create(r.Context(), auth.UserIDFromContext(r.Context()), req)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -85,7 +85,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.SoftDelete(r.Context(), h.demoUserID, transactionID); err != nil {
+	if err := h.repo.SoftDelete(r.Context(), auth.UserIDFromContext(r.Context()), transactionID); err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

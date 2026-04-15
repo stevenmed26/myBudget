@@ -2,23 +2,22 @@ package categories
 
 import (
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/auth"
 	"net/http"
 )
 
 type Handler struct {
 	repo       *Repository
-	demoUserID string
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository) *Handler {
 	return &Handler{
 		repo:       repo,
-		demoUserID: demoUserID,
 	}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	items, err := h.repo.ListByUser(r.Context(), h.demoUserID)
+	items, err := h.repo.ListByUser(r.Context(), auth.UserIDFromContext(r.Context()))
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -40,7 +39,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Color = "#6B7280" // default gray
 	}
 
-	item, err := h.repo.Create(r.Context(), h.demoUserID, req)
+	item, err := h.repo.Create(r.Context(), auth.UserIDFromContext(r.Context()), req)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

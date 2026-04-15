@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"mybudget-api/internal/auth"
 	"mybudget-api/internal/periods"
 	"mybudget-api/internal/profile"
 	"mybudget-api/pkg/normalize"
@@ -12,19 +13,17 @@ import (
 type Service struct {
 	repo        *Repository
 	profileRepo *profile.Repository
-	demoUserID  string
 }
 
-func NewService(repo *Repository, profileRepo *profile.Repository, demoUserID string) *Service {
+func NewService(repo *Repository, profileRepo *profile.Repository) *Service {
 	return &Service{
 		repo:        repo,
 		profileRepo: profileRepo,
-		demoUserID:  demoUserID,
 	}
 }
 
 func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
-	currentProfile, err := s.profileRepo.GetCurrentByUser(ctx, s.demoUserID)
+	currentProfile, err := s.profileRepo.GetCurrentByUser(ctx, auth.UserIDFromContext(r.Context()))
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +35,12 @@ func (s *Service) BuildHomeSummary(ctx context.Context) (*HomeSummary, error) {
 		currentProfile.MonthlyAnchorDay,
 	)
 
-	activeProfile, err := s.profileRepo.GetVersionForDate(ctx, s.demoUserID, current.StartDate)
+	activeProfile, err := s.profileRepo.GetVersionForDate(ctx, auth.UserIDFromContext(r.Context()), current.StartDate)
 	if err != nil {
 		return nil, err
 	}
 
-	categoryRows, err := s.repo.GetCategorySpendRows(ctx, s.demoUserID, current.StartDate, current.EndDate)
+	categoryRows, err := s.repo.GetCategorySpendRows(ctx, auth.UserIDFromContext(r.Context()), current.StartDate, current.EndDate)
 	if err != nil {
 		return nil, err
 	}
