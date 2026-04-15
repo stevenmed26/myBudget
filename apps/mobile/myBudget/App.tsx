@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -13,17 +13,16 @@ import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { useAppColors } from "./styles/theme";
 import { useAppData } from "./hooks/useAppData";
 import { useAppFonts } from "./fonts";
+import { useAppBootstrap } from "./hooks/useAppBootstrap";
+
+import { setApiAuthToken } from "./api";
+import { formatCents } from "./lib/format";
 
 const Tab = createBottomTabNavigator();
 
-function formatCents(cents: number) {
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  return `${sign}$${(abs / 100).toFixed(2)}`;
-}
-
 function AppShell() {
   const colors = useAppColors();
+  const bootstrap = useAppBootstrap();
   const {
     categories,
     transactions,
@@ -38,6 +37,10 @@ function AppShell() {
     saveProfile,
     closePeriod,
   } = useAppData();
+
+  useEffect(() => {
+    setApiAuthToken(bootstrap.authToken);
+  }, [bootstrap.authToken])
 
   async function handleClosePeriod() {
     const result = await closePeriod();
@@ -67,6 +70,21 @@ function AppShell() {
       primary: colors.accent,
     },
   };
+
+  if (!bootstrap.isReady) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ActivityIndicator size="large"/>
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer theme={navTheme}>
@@ -164,6 +182,7 @@ function AppShell() {
 }
 
 export default function App() {
+  const colors = useAppColors();
   const [fontsLoaded] = useAppFonts();
 
   if (!fontsLoaded) {
@@ -173,10 +192,10 @@ export default function App() {
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#0A0A0B",
+          backgroundColor: colors.bg,
         }}
       >
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }

@@ -111,4 +111,10 @@ export const commonStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+
+  twoColRow: {
+  flexDirection: "row",
+  gap: 12,
+  },
+  
 });

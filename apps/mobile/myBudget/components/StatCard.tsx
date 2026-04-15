@@ -2,6 +2,7 @@ import React from "react";
 import { Text } from "react-native";
 import { Card } from "./Card";
 import { ThemeColors } from "../styles/theme";
+import { commonStyles } from "../styles/common";
 
 export function StatCard({
   colors,
@@ -18,14 +19,19 @@ export function StatCard({
 }) {
   return (
     <Card colors={colors} elevated={elevated} style={{ flex: 1, gap: 8 }}>
-      <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+        {label}
+      </Text>
+
       <Text
-        style={{
-          color: valueColor ?? colors.text,
-          fontSize: 24,
-          fontWeight: "700",
-          letterSpacing: -0.6,
-        }}
+        style={[
+          commonStyles.money,
+          {
+            color: valueColor ?? colors.text,
+            fontSize: 24,
+            letterSpacing: -0.6,
+          },
+        ]}
       >
         {value}
       </Text>
