@@ -55,7 +55,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		endDate = current.EndDate
 	}
 
-	item, err := h.repo.GetSummary(r.Context(), userID, startDate, endDate)
+	item, err := h.repo.SummaryForRange(r.Context(), userID, startDate, endDate)
 	if err != nil {
 		httpx.WriteInternalError(w, "dashboard summary failed", err, "failed to load dashboard summary")
 		return
