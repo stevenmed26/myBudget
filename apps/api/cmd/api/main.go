@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"mybudget-api/internal/analytics"
+	"mybudget-api/internal/auth"
 	"mybudget-api/internal/categories"
 	"mybudget-api/internal/categorybudgets"
 	"mybudget-api/internal/config"
@@ -24,31 +25,35 @@ func main() {
 	cfg := config.Load()
 	database := db.New(cfg.DatabaseURL)
 
+	authRepo := auth.NewRepository(database)
+	authService := auth.NewService(authRepo, cfg)
+	authHandler := auth.NewHandler(authService, authRepo)
+
 	categoryRepo := categories.NewRepository(database)
-	categoryHandler := categories.NewHandler(categoryRepo, cfg.DemoUserID)
-
-	transactionRepo := transactions.NewRepository(database)
-	transactionHandler := transactions.NewHandler(transactionRepo, cfg.DemoUserID)
-
-	dashboardRepo := dashboard.NewRepository(database)
-	dashboardHandler := dashboard.NewHandler(dashboardRepo, cfg.DemoUserID)
+	categoryHandler := categories.NewHandler(categoryRepo)
 
 	profileRepo := profile.NewRepository(database)
-	profileHandler := profile.NewHandler(profileRepo, cfg.DemoUserID)
+	profileHandler := profile.NewHandler(profileRepo)
+
+	transactionRepo := transactions.NewRepository(database)
+	transactionHandler := transactions.NewHandler(transactionRepo, categoryRepo)
+
+	dashboardRepo := dashboard.NewRepository(database)
+	dashboardHandler := dashboard.NewHandler(dashboardRepo, profileRepo)
 
 	categoryBudgetRepo := categorybudgets.NewRepository(database)
-	categoryBudgetHandler := categorybudgets.NewHandler(categoryBudgetRepo, cfg.DemoUserID)
+	categoryBudgetHandler := categorybudgets.NewHandler(categoryBudgetRepo, categoryRepo)
 
 	homeRepo := home.NewRepository(database)
-	homeService := home.NewService(homeRepo, profileRepo, cfg.DemoUserID)
+	homeService := home.NewService(homeRepo, profileRepo)
 	homeHandler := home.NewHandler(homeService)
 
 	periodCloseRepo := periodclose.NewRepository(database)
-	periodCloseService := periodclose.NewService(periodCloseRepo, homeService, cfg.DemoUserID)
+	periodCloseService := periodclose.NewService(periodCloseRepo, homeService)
 	periodCloseHandler := periodclose.NewHandler(periodCloseService)
 
 	analyticsRepo := analytics.NewRepository(database)
-	analyticsHandler := analytics.NewHandler(analyticsRepo, cfg.DemoUserID)
+	analyticsHandler := analytics.NewHandler(analyticsRepo)
 
 	r := chi.NewRouter()
 
@@ -65,25 +70,37 @@ func main() {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/categories", categoryHandler.List)
-		r.Post("/categories", categoryHandler.Create)
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/register", authHandler.Register)
+			r.Post("/login", authHandler.Login)
+			r.Post("/refresh", authHandler.Refresh)
 
-		r.Get("/transactions", transactionHandler.List)
-		r.Post("/transactions", transactionHandler.Create)
-		r.Delete("/transactions/{transactionID}", transactionHandler.Delete)
+			r.With(auth.RequireAuth(cfg.JWTAccessSecret)).Get("/me", authHandler.Me)
+		})
 
-		r.Get("/dashboard/summary", dashboardHandler.Summary)
+		r.Group(func(r chi.Router) {
+			r.Use(auth.RequireAuth(cfg.JWTAccessSecret))
 
-		r.Get("/profile", profileHandler.Get)
-		r.Put("/profile", profileHandler.Update)
+			r.Get("/categories", categoryHandler.List)
+			r.Post("/categories", categoryHandler.Create)
 
-		r.Get("/category-budgets", categoryBudgetHandler.List)
-		r.Post("/category-budgets", categoryBudgetHandler.Upsert)
+			r.Get("/transactions", transactionHandler.List)
+			r.Post("/transactions", transactionHandler.Create)
+			r.Delete("/transactions/{transactionID}", transactionHandler.Delete)
 
-		r.Get("/home/summary", homeHandler.Summary)
-		r.Post("/periods/close-current", periodCloseHandler.CloseCurrent)
+			r.Get("/dashboard/summary", dashboardHandler.Summary)
 
-		r.Get("/analytics/summary", analyticsHandler.Summary)
+			r.Get("/profile", profileHandler.Get)
+			r.Put("/profile", profileHandler.Update)
+
+			r.Get("/category-budgets", categoryBudgetHandler.List)
+			r.Post("/category-budgets", categoryBudgetHandler.Upsert)
+
+			r.Get("/home/summary", homeHandler.Summary)
+			r.Post("/periods/close-current", periodCloseHandler.CloseCurrent)
+
+			r.Get("/analytics/summary", analyticsHandler.Summary)
+		})
 	})
 
 	addr := ":" + cfg.APIPort

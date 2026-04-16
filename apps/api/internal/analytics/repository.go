@@ -65,7 +65,7 @@ func (r *Repository) GetCategoryBreakdown(ctx context.Context, userID string) ([
 	}
 	defer rows.Close()
 
-	var out []AnalyticsCategorySlice
+	out := make([]AnalyticsCategorySlice, 0)
 	for rows.Next() {
 		var item AnalyticsCategorySlice
 		if err := rows.Scan(&item.CategoryID, &item.CategoryName, &item.Color, &item.AmountCents); err != nil {
@@ -96,7 +96,7 @@ func (r *Repository) GetMonthlyTrend(ctx context.Context, userID string) ([]Anal
 	}
 	defer rows.Close()
 
-	var out []AnalyticsTrendPoint
+	out := make([]AnalyticsTrendPoint, 0)
 	for rows.Next() {
 		var item AnalyticsTrendPoint
 		if err := rows.Scan(&item.Label, &item.IncomeCents, &item.ExpenseCents); err != nil {

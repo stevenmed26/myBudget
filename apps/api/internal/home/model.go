@@ -12,6 +12,7 @@ type CategoryProgress struct {
 }
 
 type HomeSummary struct {
+	UserID                string             `json:"user_id"`
 	PeriodStart           string             `json:"period_start"`
 	PeriodEnd             string             `json:"period_end"`
 	TrackingCadence       string             `json:"tracking_cadence"`

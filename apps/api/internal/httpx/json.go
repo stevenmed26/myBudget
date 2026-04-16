@@ -3,6 +3,8 @@ package httpx
 import (
 	"encoding/json"
 	"net/http"
+	"fmt"
+	"io"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, value any) {
@@ -16,7 +18,19 @@ func WriteError(w http.ResponseWriter, status int, message string) {
 }
 
 func DecodeJSON(r *http.Request, dst any) error {
+	defer r.Body.Close()
+
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	return decoder.Decode(dst)
+
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return fmt.Errorf("request body must contain only one JSON object")
+	}
+
+	return nil
 }

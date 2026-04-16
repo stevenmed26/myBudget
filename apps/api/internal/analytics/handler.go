@@ -3,43 +3,46 @@ package analytics
 import (
 	"net/http"
 
+	"mybudget-api/internal/auth"
 	"mybudget-api/internal/httpx"
 )
 
 type Handler struct {
-	repo       *Repository
-	demoUserID string
+	repo *Repository
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
-	return &Handler{
-		repo:       repo,
-		demoUserID: demoUserID,
-	}
+func NewHandler(repo *Repository) *Handler {
+	return &Handler{repo: repo}
 }
 
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
-	totalSaved, err := h.repo.GetTotalSaved(r.Context(), h.demoUserID)
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	totalIncome, totalExpenses, err := h.repo.GetTotals(r.Context(), h.demoUserID)
+	totalSaved, err := h.repo.GetTotalSaved(r.Context(), userID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "analytics total saved failed", err, "failed to load analytics")
 		return
 	}
 
-	breakdown, err := h.repo.GetCategoryBreakdown(r.Context(), h.demoUserID)
+	totalIncome, totalExpenses, err := h.repo.GetTotals(r.Context(), userID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "analytics totals failed", err, "failed to load analytics")
 		return
 	}
 
-	trend, err := h.repo.GetMonthlyTrend(r.Context(), h.demoUserID)
+	breakdown, err := h.repo.GetCategoryBreakdown(r.Context(), userID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "analytics category breakdown failed", err, "failed to load analytics")
+		return
+	}
+
+	trend, err := h.repo.GetMonthlyTrend(r.Context(), userID)
+	if err != nil {
+		httpx.WriteInternalError(w, "analytics monthly trend failed", err, "failed to load analytics")
 		return
 	}
 

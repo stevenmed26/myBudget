@@ -26,7 +26,12 @@ func New(databaseURL string) *DB {
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
+		log.Fatalf("create db pool: %v", err)
+	}
+
+	if err := pool.Ping(context.Background()); err != nil {
 		log.Fatalf("ping db: %v", err)
 	}
+
 	return &DB{Pool: pool}
 }

@@ -1,28 +1,37 @@
 package transactions
 
 import (
-	"mybudget-api/internal/httpx"
-	"mybudget-api/internal/periods"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"mybudget-api/internal/auth"
+	"mybudget-api/internal/categories"
+	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/periods"
 )
 
 type Handler struct {
-	repo       *Repository
-	demoUserID string
+	repo         *Repository
+	categoryRepo *categories.Repository
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository, categoryRepo *categories.Repository) *Handler {
 	return &Handler{
-		repo:       repo,
-		demoUserID: demoUserID,
+		repo:         repo,
+		categoryRepo: categoryRepo,
 	}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
@@ -32,9 +41,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		endDate = current.EndDate
 	}
 
-	items, err := h.repo.ListByUserAndDateRange(r.Context(), h.demoUserID, startDate, endDate)
+	items, err := h.repo.ListByUserAndDateRange(r.Context(), userID, startDate, endDate)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "transactions list failed", err, "failed to load transactions")
 		return
 	}
 
@@ -44,9 +53,15 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	var req CreateTransactionRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -69,9 +84,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		req.TransactionDate = time.Now().Format("2006-01-02")
 	}
 
-	item, err := h.repo.Create(r.Context(), h.demoUserID, req)
+	owned, err := h.categoryRepo.ExistsOwnedByUser(r.Context(), req.CategoryID, userID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "transaction category ownership check failed", err, "failed to validate category")
+		return
+	}
+	if !owned {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid category_id")
+		return
+	}
+
+	item, err := h.repo.Create(r.Context(), userID, req)
+	if err != nil {
+		httpx.WriteInternalError(w, "transaction create failed", err, "failed to create transaction")
 		return
 	}
 
@@ -79,14 +104,20 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	transactionID := chi.URLParam(r, "transactionID")
 	if strings.TrimSpace(transactionID) == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "transactionID is required")
 		return
 	}
 
-	if err := h.repo.SoftDelete(r.Context(), h.demoUserID, transactionID); err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+	if err := h.repo.SoftDelete(r.Context(), userID, transactionID); err != nil {
+		httpx.WriteInternalError(w, "transaction delete failed", err, "failed to delete transaction")
 		return
 	}
 

@@ -30,7 +30,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID string) ([]Category,
 	}
 	defer rows.Close()
 
-	var out []Category
+	out := make([]Category, 0)
 	for rows.Next() {
 		var c Category
 		if err := rows.Scan(
@@ -90,4 +90,20 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateCatego
 	}
 
 	return &c, nil
+}
+
+func (r *Repository) ExistsOwnedByUser(ctx context.Context, categoryID, userID string) (bool, error) {
+	const q = `
+		SELECT EXISTS (
+			SELECT 1
+			FROM categories
+			WHERE id = $1
+			  AND user_id = $2
+			  AND archived_at IS NULL
+		)
+	`
+
+	var ok bool
+	err := r.db.Pool.QueryRow(ctx, q, categoryID, userID).Scan(&ok)
+	return ok, err
 }

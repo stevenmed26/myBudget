@@ -25,7 +25,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function useAppData() {
+export function useAppData(enabled: boolean) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
@@ -34,6 +34,8 @@ export function useAppData() {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
 
   const loadAll = useCallback(async () => {
+    if (!enabled) return;
+
     const [cats, txs, home, prof, budgetItems, analyticsSummary] = await Promise.all([
       fetchCategories(),
       fetchTransactions(),
@@ -49,11 +51,31 @@ export function useAppData() {
     setProfile(prof);
     setBudgets(budgetItems);
     setAnalytics(analyticsSummary);
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    loadAll().catch(console.error);
-  }, [loadAll]);
+    if (!enabled) return;
+
+    loadAll().catch((err) => {
+      console.error("useAppData loadAll failed", err);
+    });
+  }, [enabled, loadAll]);
+
+  return {
+    categories,
+    transactions,
+    budgets,
+    homeSummary,
+    profile,
+    analytics,
+    loadAll,
+    addExpense,
+    removeTransaction,
+    saveBudget,
+    saveProfile,
+    closePeriod,
+  };
+
 
   async function addExpense(input: {
     category_id: string;

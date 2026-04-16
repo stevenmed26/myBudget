@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { Card } from "../components/Card";
-import { LabeledInput } from "../components/LabeledInput";
 import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
-import { AvatarBadge } from "../components/AvatarBadge";
 import { Category, Transaction } from "../types";
-
-function formatCents(cents: number) {
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  return `${sign}$${(abs / 100).toFixed(2)}`;
-}
+import { formatCents } from "../lib/format";
 
 export function TransactionsScreen({
   colors,
@@ -24,7 +25,12 @@ export function TransactionsScreen({
   colors: ThemeColors;
   categories: Category[];
   transactions: Transaction[];
-  onAddExpense: (input: { category_id: string; amount: string; merchant_name: string; note: string }) => Promise<void>;
+  onAddExpense: (input: {
+    category_id: string;
+    amount: string;
+    merchant_name: string;
+    note: string;
+  }) => Promise<void>;
   onDeleteTransaction: (transactionID: string) => Promise<void>;
 }) {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -39,73 +45,116 @@ export function TransactionsScreen({
     }
   }, [categories, selectedCategoryId]);
 
+  const selectableCategories = categories.filter((c) => c.counts_toward_budget);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
-        <View style={{ gap: 6 }}>
-          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>Activity</Text>
-          <Text style={[commonStyles.title, { color: colors.text }]}>Transactions</Text>
-        </View>
+        <Text style={[commonStyles.title, { color: colors.text }]}>
+          Transactions
+        </Text>
 
-        <Card colors={colors} elevated>
+        <Card colors={colors}>
           <SectionHeader
             colors={colors}
-            title="Add expense"
-            subtitle="Record spending quickly without leaving the flow"
+            title="Quick Add Expense"
+            subtitle="Add a new expense to one of your budget categories"
           />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: "row", gap: 10 }}>
-              {categories
-                .filter((c) => c.counts_toward_budget)
-                .map((item) => {
-                  const selected = item.id === selectedCategoryId;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => setSelectedCategoryId(item.id)}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: selected ? item.color : colors.border,
-                        backgroundColor: selected ? item.color : colors.surface,
-                      }}
+              {selectableCategories.map((item) => {
+                const selected = item.id === selectedCategoryId;
+
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setSelectedCategoryId(item.id)}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: selected ? item.color : colors.border,
+                      backgroundColor: selected ? item.color : colors.surfaceRaised,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        commonStyles.label,
+                        {
+                          color: selected ? colors.white : colors.text,
+                        },
+                      ]}
                     >
-                      <Text style={{ color: selected ? "#FFFFFF" : colors.text, fontWeight: "600" }}>
-                        {item.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                      {item.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </ScrollView>
 
-          <LabeledInput
-            colors={colors}
-            label="Amount"
-            placeholder="0.00"
-            keyboardType="decimal-pad"
-            value={amount}
-            onChangeText={setAmount}
-          />
+          <View style={{ gap: 6 }}>
+            <Text style={[commonStyles.inputLabel, { color: colors.text }]}>
+              Amount
+            </Text>
+            <TextInput
+              placeholder="Amount in dollars"
+              placeholderTextColor={colors.textSoft}
+              keyboardType="decimal-pad"
+              value={amount}
+              onChangeText={setAmount}
+              style={[
+                commonStyles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.text,
+                  backgroundColor: colors.surfaceRaised,
+                },
+              ]}
+            />
+          </View>
 
-          <LabeledInput
-            colors={colors}
-            label="Merchant"
-            placeholder="Optional"
-            value={merchantName}
-            onChangeText={setMerchantName}
-          />
+          <View style={{ gap: 6 }}>
+            <Text style={[commonStyles.inputLabel, { color: colors.text }]}>
+              Merchant
+            </Text>
+            <TextInput
+              placeholder="Merchant name (optional)"
+              placeholderTextColor={colors.textSoft}
+              value={merchantName}
+              onChangeText={setMerchantName}
+              style={[
+                commonStyles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.text,
+                  backgroundColor: colors.surfaceRaised,
+                },
+              ]}
+            />
+          </View>
 
-          <LabeledInput
-            colors={colors}
-            label="Note"
-            placeholder="Optional"
-            value={note}
-            onChangeText={setNote}
-          />
+          <View style={{ gap: 6 }}>
+            <Text style={[commonStyles.inputLabel, { color: colors.text }]}>
+              Note
+            </Text>
+            <TextInput
+              placeholder="Note (optional)"
+              placeholderTextColor={colors.textSoft}
+              value={note}
+              onChangeText={setNote}
+              style={[
+                commonStyles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.text,
+                  backgroundColor: colors.surfaceRaised,
+                },
+              ]}
+            />
+          </View>
 
           <Pressable
             onPress={async () => {
@@ -116,6 +165,7 @@ export function TransactionsScreen({
                   merchant_name: merchantName,
                   note,
                 });
+
                 setAmount("");
                 setMerchantName("");
                 setNote("");
@@ -123,7 +173,12 @@ export function TransactionsScreen({
                 Alert.alert("Add failed", err?.message ?? "Unknown error");
               }
             }}
-            style={[commonStyles.button, { backgroundColor: colors.accent }]}
+            style={[
+              commonStyles.button,
+              {
+                backgroundColor: colors.accent,
+              },
+            ]}
           >
             <Text style={commonStyles.buttonText}>Add Expense</Text>
           </Pressable>
@@ -132,12 +187,16 @@ export function TransactionsScreen({
         <Card colors={colors}>
           <SectionHeader
             colors={colors}
-            title="Recent activity"
-            subtitle="Your latest entries for this period"
+            title="Recent Transactions"
+            subtitle="Your most recent activity for this budget"
           />
 
-          <View style={{ gap: 8 }}>
-            {transactions.map((item) => {
+          {transactions.length === 0 ? (
+            <Text style={[commonStyles.body, { color: colors.textMuted }]}>
+              No transactions yet.
+            </Text>
+          ) : (
+            transactions.map((item) => {
               const category = categories.find((c) => c.id === item.category_id);
               const isExpense = item.transaction_type === "expense";
 
@@ -145,52 +204,42 @@ export function TransactionsScreen({
                 <View
                   key={item.id}
                   style={{
-                    paddingVertical: 10,
                     borderTopWidth: 1,
                     borderTopColor: colors.border,
-                    gap: 8,
+                    paddingTop: 12,
+                    gap: 6,
                   }}
                 >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 12,
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", gap: 12, flex: 1 }}>
-                      <AvatarBadge
-                        colors={colors}
-                        label={item.merchant_name || category?.name || "Txn"}
-                        tint={category?.color ? `${category.color}22` : colors.surfaceRaised}
-                      />
+                  <View style={commonStyles.rowBetween}>
+                    <View style={{ flex: 1, gap: 2, paddingRight: 12 }}>
+                      <Text style={[commonStyles.label, { color: colors.text }]}>
+                        {item.merchant_name || category?.name || "Transaction"}
+                      </Text>
 
-                      <View style={{ gap: 3, flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
-                          {item.merchant_name || category?.name || "Transaction"}
+                      <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                        {category?.name || "Unknown category"} · {item.transaction_date}
+                      </Text>
+
+                      {item.note ? (
+                        <Text style={[commonStyles.body, { color: colors.textSoft }]}>
+                          {item.note}
                         </Text>
-                        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                          {category?.name || "Unknown category"} · {item.transaction_date}
-                        </Text>
-                      </View>
+                      ) : null}
                     </View>
 
                     <Text
-                      style={{
-                        color: isExpense ? colors.danger : colors.success,
-                        fontSize: 16,
-                        fontWeight: "700",
-                      }}
+                      style={[
+                        commonStyles.money,
+                        {
+                          color: isExpense ? colors.danger : colors.success,
+                          fontSize: 18,
+                        },
+                      ]}
                     >
                       {isExpense ? "-" : "+"}
                       {formatCents(item.amount_cents)}
                     </Text>
                   </View>
-
-                  {item.note ? (
-                    <Text style={{ color: colors.textSoft, fontSize: 13 }}>{item.note}</Text>
-                  ) : null}
 
                   <Pressable
                     onPress={async () => {
@@ -200,20 +249,23 @@ export function TransactionsScreen({
                         Alert.alert("Delete failed", err?.message ?? "Unknown error");
                       }
                     }}
-                    style={{
-                      alignSelf: "flex-start",
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 999,
-                      backgroundColor: colors.dangerSoft,
-                    }}
+                    style={[
+                      commonStyles.secondaryButton,
+                      {
+                        alignSelf: "flex-start",
+                        borderColor: colors.border,
+                        backgroundColor: colors.surfaceRaised,
+                      },
+                    ]}
                   >
-                    <Text style={{ color: colors.danger, fontWeight: "700" }}>Delete</Text>
+                    <Text style={[commonStyles.label, { color: colors.text }]}>
+                      Delete
+                    </Text>
                   </Pressable>
                 </View>
               );
-            })}
-          </View>
+            })
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>

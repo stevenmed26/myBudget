@@ -2,6 +2,7 @@ package periodclose
 
 import (
 	"context"
+
 	"mybudget-api/internal/db"
 )
 
@@ -36,11 +37,11 @@ func (r *Repository) GetOrCreatePeriod(
 	}
 
 	const selectQ = `
-	    SELECT id, status, start_date::text, end_date::text, saved_rollover_transaction_id::text
+		SELECT id, status, start_date::text, end_date::text, saved_rollover_transaction_id::text
 		FROM budget_periods
 		WHERE user_id = $1
-			AND start_date = $2::date
-			AND end_date = $3::date
+		  AND start_date = $2::date
+		  AND end_date = $3::date
 	`
 
 	var row periodRow
@@ -58,11 +59,11 @@ func (r *Repository) GetOrCreatePeriod(
 
 func (r *Repository) GetSavedCategoryID(ctx context.Context, userID string) (string, error) {
 	const q = `
-	    SELECT id
+		SELECT id
 		FROM categories
 		WHERE user_id = $1
-		    AND name = 'Saved'
-			AND archived_at IS NULL
+		  AND name = 'Saved'
+		  AND archived_at IS NULL
 		LIMIT 1
 	`
 
@@ -71,46 +72,60 @@ func (r *Repository) GetSavedCategoryID(ctx context.Context, userID string) (str
 	return id, err
 }
 
-func (r *Repository) InsertSavedRolloverTransaction(
-	ctx context.Context,
-	userID string,
-	categoryID string,
-	amountCents int64,
-	transactionDate string,
-	note string,
-) (string, error) {
-	const q = `
-	    INSERT INTO transactions (
-		    id, user_id, category_id, amount_cents, transaction_type,
-			transaction_date, note, source
-		)
-		VALUES (
-		    gen_randomuuid(), $1, $2, $3, 'saved_rollover',
-			$4::date, $5, 'system'
-		)
-		RETURNING id
-	`
-
-	var id string
-	err := r.db.Pool.QueryRow(ctx, q, userID, categoryID, amountCents, transactionDate, note).Scan(&id)
-	return id, err
-}
-
-func (r *Repository) ClosePeriod(
+func (r *Repository) FinalizePeriod(
 	ctx context.Context,
 	periodID string,
-	savedTransactionID *string,
-) error {
-	const q = `
-	    UPDATE budget_periods
-		SET
-		    status = 'closed',
-			closed_at = NOW(),
-			saved_rollover_transaction_id = $2
-		WHERE id = $1
-		    AND status = 'open'
-	`
+	userID string,
+	savedCategoryID *string,
+	leftoverAmountCents int64,
+	transactionDate string,
+	note string,
+) (*string, error) {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
 
-	_, err := r.db.Pool.Exec(ctx, q, periodID, savedTransactionID)
-	return err
+	var savedTransactionID *string
+
+	if savedCategoryID != nil && leftoverAmountCents > 0 {
+		const insertTx = `
+			INSERT INTO transactions (
+				id, user_id, category_id, amount_cents, transaction_type,
+				transaction_date, note, source
+			)
+			VALUES (
+				gen_random_uuid(), $1, $2, $3, 'saved_rollover',
+				$4::date, $5, 'system'
+			)
+			RETURNING id
+		`
+
+		var id string
+		if err := tx.QueryRow(ctx, insertTx, userID, *savedCategoryID, leftoverAmountCents, transactionDate, note).Scan(&id); err != nil {
+			return nil, err
+		}
+		savedTransactionID = &id
+	}
+
+	const closeQ = `
+		UPDATE budget_periods
+		SET
+			status = 'closed',
+			closed_at = NOW(),
+			saved_rollover_transaction_id = $2,
+			updated_at = NOW()
+		WHERE id = $1
+		  AND status = 'open'
+	`
+	if _, err := tx.Exec(ctx, closeQ, periodID, savedTransactionID); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return savedTransactionID, nil
 }

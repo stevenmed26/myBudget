@@ -12,6 +12,7 @@ export function ProfileScreen({
   colors,
   profile,
   onSaveProfile,
+  onLogout,
 }: {
   colors: ThemeColors;
   profile: BudgetProfile | null;
@@ -20,6 +21,7 @@ export function ProfileScreen({
     taxRate: string;
     trackingCadence: "weekly" | "monthly";
   }) => Promise<void>;
+  onLogout?: () => Promise<void>;
 }) {
   const [incomeAmount, setIncomeAmount] = useState("");
   const [taxRate, setTaxRate] = useState("");
@@ -86,6 +88,29 @@ export function ProfileScreen({
             <Text style={commonStyles.buttonText}>Save Profile</Text>
           </Pressable>
         </Card>
+
+        {onLogout ? (
+          <Pressable
+            onPress={async () => {
+              try {
+                await onLogout();
+              } catch (err: any) {
+                Alert.alert("Logout failed", err?.message ?? "Unknown error");
+              }
+            }}
+            style={[
+              commonStyles.secondaryButton,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceRaised,
+              },
+            ]}
+          >
+            <Text style={[commonStyles.label, { color: colors.text }]}>
+              Log Out
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

@@ -30,7 +30,10 @@ services:
     environment:
       API_PORT: 8080
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/mybudget?sslmode=disable
-      DEMO_USER_ID: 11111111-1111-1111-1111-111111111111
+      JWT_ACCESS_SECRET: dev-access-secret-change-me
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-me
+      ACCESS_TOKEN_TTL_MINUTES: 15
+      REFRESH_TOKEN_TTL_DAYS: 30
     ports:
       - "8080:8080"
 

@@ -1,33 +1,42 @@
 package categorybudgets
 
 import (
-	"mybudget-api/internal/httpx"
 	"net/http"
 	"strings"
 	"time"
+
+	"mybudget-api/internal/auth"
+	"mybudget-api/internal/categories"
+	"mybudget-api/internal/httpx"
 )
 
 type Handler struct {
-	repo       *Repository
-	demoUserID string
+	repo         *Repository
+	categoryRepo *categories.Repository
 }
 
-func NewHandler(repo *Repository, demoUserID string) *Handler {
+func NewHandler(repo *Repository, categoryRepo *categories.Repository) *Handler {
 	return &Handler{
-		repo:       repo,
-		demoUserID: demoUserID,
+		repo:         repo,
+		categoryRepo: categoryRepo,
 	}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	onDate := r.URL.Query().Get("on_date")
 	if onDate == "" {
 		onDate = time.Now().Format("2006-01-02")
 	}
 
-	items, err := h.repo.ListActiveByUser(r.Context(), h.demoUserID, onDate)
+	items, err := h.repo.ListActiveByUser(r.Context(), userID, onDate)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "category budgets list failed", err, "failed to load category budgets")
 		return
 	}
 
@@ -37,9 +46,15 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Upsert(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	var req UpsertCategoryBudgetRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -57,7 +72,6 @@ func (h *Handler) Upsert(w http.ResponseWriter, r *http.Request) {
 	}
 	switch req.Cadence {
 	case "weekly", "monthly", "yearly":
-		// valid
 	default:
 		httpx.WriteError(w, http.StatusBadRequest, "cadence must be weekly, monthly, or yearly")
 		return
@@ -65,11 +79,22 @@ func (h *Handler) Upsert(w http.ResponseWriter, r *http.Request) {
 	if req.EffectiveFrom == "" {
 		req.EffectiveFrom = time.Now().Format("2006-01-02")
 	}
-	item, err := h.repo.UpsertNewVersion(r.Context(), req)
+
+	owned, err := h.categoryRepo.ExistsOwnedByUser(r.Context(), req.CategoryID, userID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteInternalError(w, "category ownership check failed", err, "failed to update category budget")
+		return
+	}
+	if !owned {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid category_id")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, item)
+	item, err := h.repo.UpsertNewVersion(r.Context(), req)
+	if err != nil {
+		httpx.WriteInternalError(w, "category budget upsert failed", err, "failed to update category budget")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, item)
 }

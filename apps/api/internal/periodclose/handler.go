@@ -16,7 +16,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CloseCurrent(w http.ResponseWriter, r *http.Request) {
 	item, err := h.service.CloseCurrentPeriod(r.Context())
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, err.Error())
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to close current period")
 		return
 	}
 

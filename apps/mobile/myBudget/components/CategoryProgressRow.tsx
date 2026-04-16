@@ -2,86 +2,80 @@ import React from "react";
 import { Text, View } from "react-native";
 import { ProgressBar } from "./ProgressBar";
 import { ThemeColors } from "../styles/theme";
-
-function formatCents(cents: number) {
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  return `${sign}$${(abs / 100).toFixed(2)}`;
-}
+import { commonStyles } from "../styles/common";
+import { formatCents } from "../lib/format";
 
 export function CategoryProgressRow({
   colors,
-  name,
-  color,
+  categoryName,
+  categoryColor,
+  spentAmountCents,
+  budgetAmountCents,
+  remainingAmountCents,
   percentUsed,
-  spent,
-  budget,
-  remaining,
 }: {
   colors: ThemeColors;
-  name: string;
-  color: string;
+  categoryName: string;
+  categoryColor: string;
+  spentAmountCents: number;
+  budgetAmountCents: number;
+  remainingAmountCents: number;
   percentUsed: number;
-  spent: number;
-  budget: number;
-  remaining: number;
 }) {
-  const over = remaining < 0;
+  const overBudget = remainingAmountCents < 0;
 
   return (
     <View
       style={{
-        paddingVertical: 8,
-        gap: 10,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingTop: 12,
+        gap: 8,
       }}
     >
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 999,
-              backgroundColor: color,
-            }}
-          />
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>{name}</Text>
-        </View>
+      <View style={commonStyles.rowBetween}>
+        <Text style={[commonStyles.label, { color: colors.text }]}>
+          {categoryName}
+        </Text>
 
-        <Text style={{ color: over ? colors.danger : colors.textMuted, fontWeight: "700" }}>
+        <Text
+          style={[
+            commonStyles.caption,
+            {
+              color: overBudget ? colors.danger : colors.textMuted,
+            },
+          ]}
+        >
           {percentUsed}%
         </Text>
       </View>
 
-      <ProgressBar percent={percentUsed} color={color} colors={colors} />
+      <ProgressBar
+        percent={percentUsed}
+        color={categoryColor}
+        colors={colors}
+      />
 
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-          {formatCents(spent)} of {formatCents(budget)}
+      <View style={commonStyles.rowBetween}>
+        <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+          Spent {formatCents(spentAmountCents)}
         </Text>
-        <Text
-          style={{
-            color: over ? colors.danger : colors.textSoft,
-            fontSize: 13,
-            fontWeight: "600",
-          }}
-        >
-          {over ? "Over " : "Left "}
-          {formatCents(Math.abs(remaining))}
+
+        <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+          Budget {formatCents(budgetAmountCents)}
         </Text>
       </View>
+
+      <Text
+        style={[
+          commonStyles.caption,
+          {
+            color: overBudget ? colors.danger : colors.success,
+          },
+        ]}
+      >
+        Remaining {formatCents(remainingAmountCents)}
+      </Text>
     </View>
   );
 }

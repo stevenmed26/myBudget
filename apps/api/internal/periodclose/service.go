@@ -3,23 +3,19 @@ package periodclose
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"mybudget-api/internal/home"
-	"mybudget-api/internal/periods"
 )
 
 type Service struct {
 	repo        *Repository
 	homeService *home.Service
-	demoUserID  string
 }
 
-func NewService(repo *Repository, homeService *home.Service, demoUserID string) *Service {
+func NewService(repo *Repository, homeService *home.Service) *Service {
 	return &Service{
 		repo:        repo,
 		homeService: homeService,
-		demoUserID:  demoUserID,
 	}
 }
 
@@ -31,7 +27,7 @@ func (s *Service) CloseCurrentPeriod(ctx context.Context) (*ClosePeriodResponse,
 
 	periodRow, err := s.repo.GetOrCreatePeriod(
 		ctx,
-		s.demoUserID,
+		homeSummary.UserID,
 		homeSummary.PeriodStart,
 		homeSummary.PeriodEnd,
 		homeSummary.TrackingCadence,
@@ -57,34 +53,32 @@ func (s *Service) CloseCurrentPeriod(ctx context.Context) (*ClosePeriodResponse,
 	}
 
 	leftover := homeSummary.RemainingAmountCents
-	var savedTransactionID *string
+	var savedCategoryID *string
 
 	if leftover > 0 {
-		savedCategoryID, err := s.repo.GetSavedCategoryID(ctx, s.demoUserID)
+		id, err := s.repo.GetSavedCategoryID(ctx, homeSummary.UserID)
 		if err != nil {
 			return nil, err
 		}
-
-		note := fmt.Sprintf(
-			"Automatic Saved rollover for %s to %s",
-			homeSummary.PeriodStart,
-			homeSummary.PeriodEnd,
-		)
-		id, err := s.repo.InsertSavedRolloverTransaction(
-			ctx,
-			s.demoUserID,
-			savedCategoryID,
-			leftover,
-			homeSummary.PeriodEnd,
-			note,
-		)
-		if err != nil {
-			return nil, err
-		}
-		savedTransactionID = &id
+		savedCategoryID = &id
 	}
 
-	if err := s.repo.ClosePeriod(ctx, periodRow.ID, savedTransactionID); err != nil {
+	note := fmt.Sprintf(
+		"Automatic Saved rollover for %s to %s",
+		homeSummary.PeriodStart,
+		homeSummary.PeriodEnd,
+	)
+
+	savedTransactionID, err := s.repo.FinalizePeriod(
+		ctx,
+		periodRow.ID,
+		homeSummary.UserID,
+		savedCategoryID,
+		leftover,
+		homeSummary.PeriodEnd,
+		note,
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -102,8 +96,4 @@ func (s *Service) CloseCurrentPeriod(ctx context.Context) (*ClosePeriodResponse,
 	}
 
 	return resp, nil
-}
-
-func (s *Service) CurrentPeriod(now time.Time, cadence string, weekStartsOn int, monthlyAnchorDay int) periods.CurrentPeriod {
-	return periods.GetCurrentPeriod(now, cadence, weekStartsOn, monthlyAnchorDay)
 }

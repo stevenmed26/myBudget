@@ -20,6 +20,15 @@ CREATE TABLE IF NOT EXISTS budget_profiles (
     UNIQUE(user_id)
 );
 
+CREATE TABLE IF NOT EXISTS budget_periods (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    cadence TEXT NOT NULL CHECK (cadence IN ('weekly', 'monthly')),
+    status TEXT NOT NULL DEFAULT 'open'
+);
+
 CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

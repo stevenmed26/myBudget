@@ -55,7 +55,7 @@ export const commonStyles = StyleSheet.create({
     fontSize: 18,
   },
 
-  // 🧱 LAYOUT / SURFACE
+  // LAYOUT / SURFACE
 
   card: {
     borderWidth: 1,
@@ -111,4 +111,10 @@ export const commonStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+
+  twoColRow: {
+  flexDirection: "row",
+  gap: 12,
+  },
+
 });
