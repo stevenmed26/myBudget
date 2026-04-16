@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"mybudget-api/internal/config"
+	"mybudget-api/internal/periods"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -49,7 +50,14 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 		return nil, err
 	}
 
-	user, err := s.repo.CreateUserWithDefaults(ctx, email, string(pwHash))
+	now := time.Now()
+	loc, err := time.LoadLocation("America/Chicago")
+	if err == nil {
+		now = now.In(loc)
+	}
+	current := periods.GetCurrentPeriod(now, "weekly", 1, 1)
+	effectiveFrom := current.StartDate
+	user, err := s.repo.CreateUserWithDefaults(ctx, email, string(pwHash), effectiveFrom)
 	if err != nil {
 		return nil, err
 	}

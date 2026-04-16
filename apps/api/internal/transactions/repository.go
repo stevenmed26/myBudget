@@ -32,7 +32,7 @@ func (r *Repository) ListByUserAndDateRange(ctx context.Context, userID, startDa
 	}
 	defer rows.Close()
 
-	var out []Transaction
+	out := make([]Transaction, 0)
 	for rows.Next() {
 		var t Transaction
 		if err := rows.Scan(

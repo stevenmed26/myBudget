@@ -30,7 +30,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID string) ([]Category,
 	}
 	defer rows.Close()
 
-	var out []Category
+	out := make([]Category, 0)
 	for rows.Next() {
 		var c Category
 		if err := rows.Scan(

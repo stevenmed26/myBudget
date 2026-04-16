@@ -63,7 +63,7 @@ func (r *Repository) GetUserByID(ctx context.Context, userID string) (*UserRecor
 	return &u, nil
 }
 
-func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, passwordHash string) (*UserRecord, error) {
+func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, passwordHash, effectiveFrom string) (*UserRecord, error) {
 	tx, err := r.db.Pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -101,9 +101,9 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
 			effective_from
 		)
-		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0, CURRENT_DATE)
+		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0, $2::date)
 	`
-	if _, err := tx.Exec(ctx, createProfileVersion, u.ID); err != nil {
+	if _, err := tx.Exec(ctx, createProfileVersion, u.ID, effectiveFrom); err != nil {
 		return nil, err
 	}
 

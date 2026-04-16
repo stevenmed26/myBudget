@@ -107,7 +107,7 @@ func (r *Repository) GetCategorySpendRows(ctx context.Context, userID, startDate
 	}
 	defer rows.Close()
 
-	var out []categorySpendRow
+	out := make([]categorySpendRow, 0)
 	for rows.Next() {
 		var row categorySpendRow
 		if err := rows.Scan(

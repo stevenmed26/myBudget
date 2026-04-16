@@ -40,7 +40,7 @@ func (r *Repository) ListActiveByUser(ctx context.Context, userID string, onDate
 	}
 	defer rows.Close()
 
-	var out []CategoryBudget
+	out := make([]CategoryBudget, 0)
 	for rows.Next() {
 		var item CategoryBudget
 		if err := rows.Scan(
