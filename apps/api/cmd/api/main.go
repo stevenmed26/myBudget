@@ -19,6 +19,7 @@ import (
 	"mybudget-api/internal/periodclose"
 	"mybudget-api/internal/profile"
 	"mybudget-api/internal/transactions"
+	"mybudget-api/internal/onboarding"
 )
 
 func main() {
@@ -55,6 +56,9 @@ func main() {
 	analyticsRepo := analytics.NewRepository(database)
 	analyticsHandler := analytics.NewHandler(analyticsRepo)
 
+	onboardingRepo := onboarding.NewRepository(database)
+	onboardingHandler := onboarding.NewHandler(onboardingRepo, profileRepo)
+
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -80,6 +84,9 @@ func main() {
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireAuth(cfg.JWTAccessSecret))
+
+			r.Get("/onboarding/status", onboardingHandler.Status)
+			r.Post("/onboarding/complete", onboardingHandler.Submit)
 
 			r.Get("/categories", categoryHandler.List)
 			r.Post("/categories", categoryHandler.Create)
