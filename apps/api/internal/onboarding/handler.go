@@ -15,9 +15,7 @@ type Handler struct {
 }
 
 func NewHandler(repo *Repository) *Handler {
-	return &Handler{
-		repo: repo,
-	}
+	return &Handler{repo: repo}
 }
 
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
@@ -27,14 +25,14 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	completed, err := h.repo.IsOnboardingCompleted(r.Context(), userID)
+	completed, err := h.repo.IsCompleted(r.Context(), userID)
 	if err != nil {
 		httpx.WriteInternalError(w, "onboarding status failed", err, "failed to load onboarding status")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"Completed": completed,
+	httpx.WriteJSON(w, http.StatusOK, StatusResponse{
+		Completed: completed,
 	})
 }
 
@@ -107,12 +105,12 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 	current := periods.GetCurrentPeriod(now, req.TrackingCadence, req.WeekStartsOn, req.MonthlyAnchorDay)
 	effectiveFrom := current.StartDate
 
-	if err := h.repo.SubmitOnboarding(r.Context(), userID, req, effectiveFrom); err != nil {
-		httpx.WriteInternalError(w, "onboarding submission failed", err, "failed to submit onboarding")
+	if err := h.repo.Submit(r.Context(), userID, req, effectiveFrom); err != nil {
+		httpx.WriteInternalError(w, "onboarding submit failed", err, "failed to complete onboarding")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+	httpx.WriteJSON(w, http.StatusOK, StatusResponse{
 		Completed: true,
 	})
 }

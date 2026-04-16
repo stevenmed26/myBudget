@@ -23,7 +23,7 @@ func (r *Repository) IsCompleted(ctx context.Context, userID string) (bool, erro
 	`
 
 	var completed bool
-	err : r.db.Pool.QueryRow(ctx, q, userID).Scan(&completed)
+	err := r.db.Pool.QueryRow(ctx, q, userID).Scan(&completed)
 	if err != nil {
 		return false, err
 	}
@@ -51,7 +51,6 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 			onboarding_completed_at = NOW()
 		WHERE user_id = $1
 	`
-
 	if _, err := tx.Exec(ctx, updateProfile,
 		userID,
 		req.TrackingCadence,
@@ -69,24 +68,43 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 		UPDATE budget_profile_versions
 		SET effective_to = ($2::date - INTERVAL '1 day')::date
 		WHERE user_id = $1
-			AND effective_to IS NULL
+		  AND effective_to IS NULL
 	`
-
 	if _, err := tx.Exec(ctx, closeOldProfileVersion, userID, effectiveFrom); err != nil {
 		return err
 	}
 
 	const insertProfileVersion = `
 		INSERT INTO budget_profile_versions (
-		user_id, tracking_cadence, week_starts_on, monthly_anchor_day,
-		income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
-		effective_from)
+			user_id,
+			tracking_cadence,
+			week_starts_on,
+			monthly_anchor_day,
+			currency_code,
+			locale,
+			timezone,
+			income_amount_cents,
+			income_cadence,
+			location_code,
+			estimated_tax_rate_bps,
+			effective_from
+		)
 		SELECT
-			user_id, $2, $3, $4, currency_code, locale, timezone, $5, $6, $7, $8, $9::date
+			user_id,
+			$2,
+			$3,
+			$4,
+			currency_code,
+			locale,
+			timezone,
+			$5,
+			$6,
+			$7,
+			$8,
+			$9::date
 		FROM budget_profiles
 		WHERE user_id = $1
 	`
-
 	if _, err := tx.Exec(ctx, insertProfileVersion,
 		userID,
 		req.TrackingCadence,
@@ -106,8 +124,8 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 			SELECT id
 			FROM categories
 			WHERE user_id = $1
-				AND name = $2
-				AND archived_at IS NULL
+			  AND name = $2
+			  AND archived_at IS NULL
 			LIMIT 1
 		`
 
@@ -116,16 +134,21 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 			return err
 		}
 
+		const closeOldBudget = `
+			UPDATE category_budgets
+			SET effective_to = ($2::date - INTERVAL '1 day')::date
+			WHERE category_id = $1
+			  AND effective_to IS NULL
+		`
+		if _, err := tx.Exec(ctx, closeOldBudget, categoryID, effectiveFrom); err != nil {
+			return err
+		}
+
 		const insertBudget = `
 			INSERT INTO category_budgets (category_id, amount_cents, cadence, effective_from)
 			VALUES ($1, $2, $3, $4::date)
 		`
-		if _, err := tx.Exec(ctx, insertBudget,
-			categoryID,
-			item.AmountCents,
-			item.Cadence,
-			effectiveFrom,
-		); err != nil {
+		if _, err := tx.Exec(ctx, insertBudget, categoryID, item.AmountCents, item.Cadence, effectiveFrom); err != nil {
 			return err
 		}
 	}

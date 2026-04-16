@@ -11,6 +11,7 @@ import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SignUpScreen } from "./screens/SignUpScreen";
+import { OnboardingScreen } from "./screens/OnboardingScreen";
 
 import { useAppColors } from "./styles/theme";
 import { useAppData } from "./hooks/useAppData";
@@ -25,6 +26,8 @@ import {
   login,
   register,
   setApiAuthToken,
+  fetchOnboardingStatus,
+  submitOnboarding,
 } from "./api";
 
 const Tab = createBottomTabNavigator();
@@ -163,6 +166,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [authToken, setAuthTokenState] = useState<string | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!bootstrap.isReady || authInitialized) return;
@@ -171,13 +175,35 @@ export default function App() {
   }, [bootstrap.isReady, bootstrap.authToken, authInitialized]);
 
   useEffect(() => {
-    setApiAuthToken(authToken);
-  }, [authToken]);
+      setApiAuthToken(authToken);
+    }, [authToken]);
+
+    useEffect(() => {
+    async function loadOnboardingStatus() {
+      if (!authToken) {
+        setOnboardingCompleted(null);
+        return;
+      }
+
+      try {
+        const status = await fetchOnboardingStatus();
+        setOnboardingCompleted(status.completed);
+      } catch (err) {
+        console.error("Failed loading onboarding status", err);
+
+        await clearSession();
+        setAuthTokenState(null);
+        bootstrap.setAuthToken(null);
+        setApiAuthToken(null);
+        setOnboardingCompleted(null);
+        setAuthMode("login");
+      }
+    }
+
+    loadOnboardingStatus();
+  }, [authToken, bootstrap]);
 
   async function handleAuthSuccess(accessToken: string, refreshToken: string) {
-    console.log("handleAuthSuccess called");
-    console.log("accessToken?", !!accessToken);
-    console.log("refreshToken?", !!refreshToken);
 
     await Promise.all([
       storeAccessToken(accessToken),
@@ -228,7 +254,26 @@ export default function App() {
     setAuthTokenState(null);
     bootstrap.setAuthToken(null);
     setApiAuthToken(null);
+    setOnboardingCompleted(null);
     setAuthMode("login");
+  }
+
+  async function handleOnboardingSubmit(input: {
+    tracking_cadence: "weekly" | "monthly";
+    week_starts_on: number;
+    monthly_anchor_day: number;
+    income_amount_cents: number;
+    income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
+    location_code: string;
+    estimated_tax_rate_bps: number;
+    category_budgets: {
+      category_name: string;
+      amount_cents: number;
+      cadence: "weekly" | "monthly" | "yearly";
+    }[];
+  }) {
+    await submitOnboarding(input);
+    setOnboardingCompleted(true);
   }
 
   if (!bootstrap.isReady || !authInitialized) {
@@ -248,27 +293,40 @@ export default function App() {
 
   const isAuthenticated = !!authToken;
 
-  console.log("bootstrap.isReady", bootstrap.isReady);
-  console.log("bootstrap.authToken", bootstrap.authToken);
-  console.log("authToken state", authToken);
-  console.log("isAuthenticated", !!authToken);
-
   return (
     <NavigationContainer>
-      {isAuthenticated ? (
-        <AuthenticatedApp colors={colors} onLogout={handleLogout} />
-      ) : authMode === "login" ? (
-        <LoginScreen
+      {!isAuthenticated ? (
+        authMode === "login" ? (
+          <LoginScreen
+            colors={colors}
+            onLogin={handleLogin}
+            onSwitchToSignUp={() => setAuthMode("signup")}
+          />
+        ) : (
+          <SignUpScreen
+            colors={colors}
+            onSignUp={handleSignUp}
+            onSwitchToLogin={() => setAuthMode("login")}
+          />
+        )
+      ) : onboardingCompleted === null ? (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.bg,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      ) : !onboardingCompleted ? (
+        <OnboardingScreen
           colors={colors}
-          onLogin={handleLogin}
-          onSwitchToSignUp={() => setAuthMode("signup")}
+          onSubmit={handleOnboardingSubmit}
         />
       ) : (
-        <SignUpScreen
-          colors={colors}
-          onSignUp={handleSignUp}
-          onSwitchToLogin={() => setAuthMode("login")}
-        />
+        <AuthenticatedApp colors={colors} onLogout={handleLogout} />
       )}
     </NavigationContainer>
   );

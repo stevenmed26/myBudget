@@ -57,7 +57,7 @@ func main() {
 	analyticsHandler := analytics.NewHandler(analyticsRepo)
 
 	onboardingRepo := onboarding.NewRepository(database)
-	onboardingHandler := onboarding.NewHandler(onboardingRepo, profileRepo)
+	onboardingHandler := onboarding.NewHandler(onboardingRepo)
 
 	r := chi.NewRouter()
 
@@ -86,7 +86,7 @@ func main() {
 			r.Use(auth.RequireAuth(cfg.JWTAccessSecret))
 
 			r.Get("/onboarding/status", onboardingHandler.Status)
-			r.Post("/onboarding/complete", onboardingHandler.Submit)
+			r.Post("/onboarding/submit", onboardingHandler.Submit)
 
 			r.Get("/categories", categoryHandler.List)
 			r.Post("/categories", categoryHandler.Create)
