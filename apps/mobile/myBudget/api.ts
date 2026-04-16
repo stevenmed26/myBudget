@@ -8,6 +8,7 @@ import {
   Transaction,
   AuthUser,
   AuthResponse,
+  OnboardingStatus,
 } from "./types";
 
 const API_BASE_URL = "http://localhost:8080/api/v1";
@@ -179,4 +180,33 @@ export async function fetchMe() {
     headers: buildHeaders(),
   });
   return handle<AuthResponse>(res);
+}
+
+export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
+  const res = await fetch(`${API_BASE_URL}/onboarding/status`, {
+    headers: buildHeaders(),
+  });
+  return handle<OnboardingStatus>(res);
+}
+
+export async function submitOnboarding(input: {
+  tracking_cadence: "weekly" | "monthly";
+  week_starts_on: number;
+  monthly_anchor_day: number;
+  income_amount_cents: number;
+  income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
+  location_code: string;
+  estimated_tax_rate_bps: number;
+  category_budgets: {
+    category_name: string;
+    amount_cents: number;
+    cadence: "weekly" | "monthly" | "yearly";
+  }[];
+}) {
+  const res = await fetch(`${API_BASE_URL}/onboarding/submit`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<OnboardingStatus>(res);
 }

@@ -116,3 +116,7 @@ export type AuthResponse = {
   refresh_token: string;
   user: AuthUser;
 };
+
+export type OnboardingStatus = {
+  completed: boolean;
+};
