@@ -82,7 +82,7 @@ export type ClosePeriodResponse = {
   spent_amount_cents: number;
   leftover_amount_cents: number;
   saved_transaction_id?: string;
-  already_closed: boolean;
+  already_closed?: boolean;
 };
 
 export type AnalyticsCategorySlice = {

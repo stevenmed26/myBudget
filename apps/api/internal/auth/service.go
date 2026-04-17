@@ -93,13 +93,9 @@ func (s *Service) Refresh(ctx context.Context, rawRefreshToken string) (*AuthRes
 		return nil, errors.New("refresh token is required")
 	}
 
-	userID, err := s.repo.FindValidRefreshToken(ctx, rawRefreshToken)
+	userID, err := s.repo.ConsumeRefreshToken(ctx, rawRefreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
-	}
-
-	if err := s.repo.RevokeRefreshToken(ctx, rawRefreshToken); err != nil {
-		return nil, err
 	}
 
 	user, err := s.repo.GetUserByID(ctx, userID)
@@ -111,8 +107,14 @@ func (s *Service) Refresh(ctx context.Context, rawRefreshToken string) (*AuthRes
 }
 
 func (s *Service) issueTokens(ctx context.Context, user *UserRecord) (*AuthResponse, error) {
-	accessTTLMinutes, _ := strconv.Atoi(s.cfg.AccessTokenTTLMinutes)
-	refreshTTLDays, _ := strconv.Atoi(s.cfg.RefreshTokenTTLDays)
+	accessTTLMinutes, err := strconv.Atoi(s.cfg.AccessTokenTTLMinutes)
+	if err != nil || accessTTLMinutes <= 0 {
+		accessTTLMinutes = 15
+	}
+	refreshTTLDays, err := strconv.Atoi(s.cfg.RefreshTokenTTLDays)
+	if err != nil || refreshTTLDays <= 0 {
+		refreshTTLDays = 30
+	}
 
 	now := time.Now()
 	accessExp := now.Add(time.Duration(accessTTLMinutes) * time.Minute)

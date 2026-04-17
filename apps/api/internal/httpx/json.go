@@ -2,9 +2,9 @@ package httpx
 
 import (
 	"encoding/json"
-	"net/http"
 	"fmt"
 	"io"
+	"net/http"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, value any) {

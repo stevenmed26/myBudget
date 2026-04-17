@@ -78,16 +78,21 @@ func (r *Repository) GetCategoryBreakdown(ctx context.Context, userID string) ([
 
 func (r *Repository) GetMonthlyTrend(ctx context.Context, userID string) ([]AnalyticsTrendPoint, error) {
 	const q = `
-		SELECT
-			TO_CHAR(DATE_TRUNC('month', transaction_date), 'YYYY-MM') AS label,
-			COALESCE(SUM(CASE WHEN transaction_type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
-			COALESCE(SUM(CASE WHEN transaction_type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents
-		FROM transactions
-		WHERE user_id = $1
-		  AND deleted_at IS NULL
-		GROUP BY DATE_TRUNC('month', transaction_date)
-		ORDER BY DATE_TRUNC('month', transaction_date) ASC
-		LIMIT 12
+		SELECT label, income_cents, expense_cents
+		FROM (
+			SELECT
+				DATE_TRUNC('month', transaction_date) AS month_start,
+				TO_CHAR(DATE_TRUNC('month', transaction_date), 'YYYY-MM') AS label,
+				COALESCE(SUM(CASE WHEN transaction_type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
+				COALESCE(SUM(CASE WHEN transaction_type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents
+			FROM transactions
+			WHERE user_id = $1
+			  AND deleted_at IS NULL
+			GROUP BY DATE_TRUNC('month', transaction_date)
+			ORDER BY month_start DESC
+			LIMIT 12
+		) recent
+		ORDER BY month_start ASC
 	`
 
 	rows, err := r.db.Pool.Query(ctx, q, userID)

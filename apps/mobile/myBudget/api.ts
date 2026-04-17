@@ -11,11 +11,26 @@ import {
   OnboardingStatus,
 } from "./types";
 
-const API_BASE_URL = "http://localhost:8080/api/v1";
-// iPhone const API_BASE_URL = "http://127.0.0.1:8080/api/v1";
-// Android const API_BASE_URL = "http://10.0.2.2:8080/api/v1";
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080/api/v1";
 
-let authToken : string | null = null;
+let authToken: string | null = null;
+
+export class ApiError extends Error {
+  status: number;
+  body?: unknown;
+
+  constructor(message: string, status: number, body?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function isUnauthorizedError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
 
 export function setApiAuthToken(token: string | null) {
   authToken = token;
@@ -29,12 +44,35 @@ function buildHeaders(extra?: Record<string, string>) {
   };
 }
 
-async function handle<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `request failed: ${res.status}`);
+function safeJsonParse(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
   }
-  return res.json() as Promise<T>;
+}
+
+async function handle<T>(res: Response): Promise<T> {
+  const rawText = await res.text();
+  const body = rawText ? safeJsonParse(rawText) : undefined;
+
+  if (!res.ok) {
+    const message =
+      typeof body === "object" &&
+      body !== null &&
+      "error" in body &&
+      typeof (body as { error?: unknown }).error === "string"
+        ? (body as { error: string }).error
+        : rawText || `request failed: ${res.status}`;
+
+    throw new ApiError(message, res.status, body);
+  }
+
+  if (!rawText) {
+    return undefined as T;
+  }
+
+  return (body as T) ?? (JSON.parse(rawText) as T);
 }
 
 export async function fetchCategories(): Promise<Category[]> {
@@ -166,7 +204,7 @@ export async function login(input: { email: string; password: string }) {
   return handle<AuthResponse>(res);
 }
 
-export async function refreshAccessToken(input: { email: string; password: string }) {
+export async function refreshAccessToken(input: { refresh_token: string }) {
   const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: "POST",
     headers: buildHeaders(),
@@ -175,11 +213,11 @@ export async function refreshAccessToken(input: { email: string; password: strin
   return handle<AuthResponse>(res);
 }
 
-export async function fetchMe() {
+export async function fetchMe(): Promise<AuthUser> {
   const res = await fetch(`${API_BASE_URL}/auth/me`, {
     headers: buildHeaders(),
   });
-  return handle<AuthResponse>(res);
+  return handle<AuthUser>(res);
 }
 
 export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {

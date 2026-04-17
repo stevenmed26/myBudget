@@ -4,7 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"mybudget-api/internal/db"
 )
@@ -142,29 +145,22 @@ func (r *Repository) InsertRefreshToken(ctx context.Context, userID, rawToken st
 	return err
 }
 
-func (r *Repository) FindValidRefreshToken(ctx context.Context, rawToken string) (string, error) {
-	const q = `
-		SELECT user_id
-		FROM refresh_tokens
-		WHERE token_hash = $1
-		  AND revoked_at IS NULL
-		  AND expires_at > NOW()
-		ORDER BY created_at DESC
-		LIMIT 1
-	`
+var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 
-	var userID string
-	err := r.db.Pool.QueryRow(ctx, q, hashToken(rawToken)).Scan(&userID)
-	return userID, err
-}
-
-func (r *Repository) RevokeRefreshToken(ctx context.Context, rawToken string) error {
+func (r *Repository) ConsumeRefreshToken(ctx context.Context, rawToken string) (string, error) {
 	const q = `
 		UPDATE refresh_tokens
 		SET revoked_at = NOW()
 		WHERE token_hash = $1
 		  AND revoked_at IS NULL
+		  AND expires_at > NOW()
+		RETURNING user_id
 	`
-	_, err := r.db.Pool.Exec(ctx, q, hashToken(rawToken))
-	return err
+
+	var userID string
+	err := r.db.Pool.QueryRow(ctx, q, hashToken(rawToken)).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrInvalidRefreshToken
+	}
+	return userID, err
 }

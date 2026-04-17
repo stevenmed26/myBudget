@@ -49,7 +49,7 @@ func Load() Config {
 func getEnv(key, fallback string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		log.Printf("Warning: %s not set, using default value: %s", key, fallback)
+		log.Printf("Warning: %s not set, using default value", key)
 		return fallback
 	}
 	return v

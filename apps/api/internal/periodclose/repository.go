@@ -2,6 +2,7 @@ package periodclose
 
 import (
 	"context"
+	"errors"
 
 	"mybudget-api/internal/db"
 )
@@ -119,8 +120,12 @@ func (r *Repository) FinalizePeriod(
 		WHERE id = $1
 		  AND status = 'open'
 	`
-	if _, err := tx.Exec(ctx, closeQ, periodID, savedTransactionID); err != nil {
+	cmd, err := tx.Exec(ctx, closeQ, periodID, savedTransactionID)
+	if err != nil {
 		return nil, err
+	}
+	if cmd.RowsAffected() == 0 {
+		return nil, errors.New("period is already closed")
 	}
 
 	if err := tx.Commit(ctx); err != nil {

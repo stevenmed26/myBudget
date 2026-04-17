@@ -12,6 +12,7 @@ import {
   updateProfile,
   upsertCategoryBudget,
 } from "../api";
+import { todayISO } from "../lib/format";
 import {
   AnalyticsSummary,
   BudgetProfile,
@@ -20,10 +21,6 @@ import {
   HomeSummary,
   Transaction,
 } from "../types";
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function useAppData(enabled: boolean) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -52,30 +49,6 @@ export function useAppData(enabled: boolean) {
     setBudgets(budgetItems);
     setAnalytics(analyticsSummary);
   }, [enabled]);
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    loadAll().catch((err) => {
-      console.error("useAppData loadAll failed", err);
-    });
-  }, [enabled, loadAll]);
-
-  return {
-    categories,
-    transactions,
-    budgets,
-    homeSummary,
-    profile,
-    analytics,
-    loadAll,
-    addExpense,
-    removeTransaction,
-    saveBudget,
-    saveProfile,
-    closePeriod,
-  };
-
 
   async function addExpense(input: {
     category_id: string;
@@ -165,6 +138,14 @@ export function useAppData(enabled: boolean) {
     await loadAll();
     return result;
   }
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    loadAll().catch((err) => {
+      console.error("useAppData loadAll failed", err);
+    });
+  }, [enabled, loadAll]);
 
   return {
     categories,

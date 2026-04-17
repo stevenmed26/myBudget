@@ -23,10 +23,11 @@ import {
   setRefreshToken as storeRefreshToken,
 } from "./lib/secureStore";
 import {
+  fetchOnboardingStatus,
+  isUnauthorizedError,
   login,
   register,
   setApiAuthToken,
-  fetchOnboardingStatus,
   submitOnboarding,
 } from "./api";
 
@@ -137,12 +138,7 @@ function AuthenticatedApp({
       </Tab.Screen>
 
       <Tab.Screen name="Analytics">
-        {() => (
-          <AnalyticsScreen
-            colors={colors}
-            analytics={analytics}
-          />
-        )}
+        {() => <AnalyticsScreen colors={colors} analytics={analytics} />}
       </Tab.Screen>
 
       <Tab.Screen name="Profile">
@@ -175,10 +171,10 @@ export default function App() {
   }, [bootstrap.isReady, bootstrap.authToken, authInitialized]);
 
   useEffect(() => {
-      setApiAuthToken(authToken);
-    }, [authToken]);
+    setApiAuthToken(authToken);
+  }, [authToken]);
 
-    useEffect(() => {
+  useEffect(() => {
     async function loadOnboardingStatus() {
       if (!authToken) {
         setOnboardingCompleted(null);
@@ -191,12 +187,17 @@ export default function App() {
       } catch (err) {
         console.error("Failed loading onboarding status", err);
 
-        await clearSession();
-        setAuthTokenState(null);
-        bootstrap.setAuthToken(null);
-        setApiAuthToken(null);
-        setOnboardingCompleted(null);
-        setAuthMode("login");
+        if (isUnauthorizedError(err)) {
+          await clearSession();
+          setAuthTokenState(null);
+          bootstrap.setAuthToken(null);
+          setApiAuthToken(null);
+          setOnboardingCompleted(null);
+          setAuthMode("login");
+          return;
+        }
+
+        setOnboardingCompleted((current) => current ?? false);
       }
     }
 
@@ -204,30 +205,17 @@ export default function App() {
   }, [authToken, bootstrap]);
 
   async function handleAuthSuccess(accessToken: string, refreshToken: string) {
-
-    await Promise.all([
-      storeAccessToken(accessToken),
-      storeRefreshToken(refreshToken),
-    ]);
-
-    console.log("tokens stored");
+    await Promise.all([storeAccessToken(accessToken), storeRefreshToken(refreshToken)]);
 
     setAuthTokenState(accessToken);
     bootstrap.setAuthToken(accessToken);
     setApiAuthToken(accessToken);
-
-    console.log("state updated");
   }
 
   async function handleLogin(email: string, password: string) {
-    console.log("handleLogin start", email);
-
     try {
       const resp = await login({ email, password });
-      console.log("login response", resp);
-
       await handleAuthSuccess(resp.access_token, resp.refresh_token);
-      console.log("handleLogin complete");
     } catch (err) {
       console.error("handleLogin failed", err);
       throw err;
@@ -235,14 +223,9 @@ export default function App() {
   }
 
   async function handleSignUp(email: string, password: string) {
-    console.log("handleSignUp start", email);
-
     try {
       const resp = await register({ email, password });
-      console.log("signup response", resp);
-
       await handleAuthSuccess(resp.access_token, resp.refresh_token);
-      console.log("handleSignUp complete");
     } catch (err) {
       console.error("handleSignUp failed", err);
       throw err;
@@ -321,10 +304,7 @@ export default function App() {
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : !onboardingCompleted ? (
-        <OnboardingScreen
-          colors={colors}
-          onSubmit={handleOnboardingSubmit}
-        />
+        <OnboardingScreen colors={colors} onSubmit={handleOnboardingSubmit} />
       ) : (
         <AuthenticatedApp colors={colors} onLogout={handleLogout} />
       )}

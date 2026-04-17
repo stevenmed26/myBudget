@@ -16,10 +16,10 @@ import (
 	"mybudget-api/internal/db"
 	"mybudget-api/internal/home"
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/onboarding"
 	"mybudget-api/internal/periodclose"
 	"mybudget-api/internal/profile"
 	"mybudget-api/internal/transactions"
-	"mybudget-api/internal/onboarding"
 )
 
 func main() {

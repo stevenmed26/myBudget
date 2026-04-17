@@ -82,18 +82,18 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 	if req.LocationCode == "" {
 		req.LocationCode = "US-TX"
 	}
-	for _, item := range req.CategoryBudgets {
-		item.CategoryName = strings.TrimSpace(item.CategoryName)
-		item.Cadence = strings.TrimSpace(item.Cadence)
-		if item.CategoryName == "" {
+	for i := range req.CategoryBudgets {
+		req.CategoryBudgets[i].CategoryName = strings.TrimSpace(req.CategoryBudgets[i].CategoryName)
+		req.CategoryBudgets[i].Cadence = strings.TrimSpace(req.CategoryBudgets[i].Cadence)
+		if req.CategoryBudgets[i].CategoryName == "" {
 			httpx.WriteError(w, http.StatusBadRequest, "category_name is required")
 			return
 		}
-		if item.AmountCents < 0 {
+		if req.CategoryBudgets[i].AmountCents < 0 {
 			httpx.WriteError(w, http.StatusBadRequest, "category budget amount_cents must be >= 0")
 			return
 		}
-		switch item.Cadence {
+		switch req.CategoryBudgets[i].Cadence {
 		case "weekly", "monthly", "yearly":
 		default:
 			httpx.WriteError(w, http.StatusBadRequest, "category budget cadence must be weekly, monthly, or yearly")

@@ -5,17 +5,17 @@ import (
 	"strings"
 	"time"
 
-	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/auth"
+	"mybudget-api/internal/httpx"
 )
 
 type Handler struct {
-	repo       *Repository
+	repo *Repository
 }
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{
-		repo:       repo,
+		repo: repo,
 	}
 }
 
@@ -47,7 +47,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.TrackingCadence = strings.TrimSpace(req.TrackingCadence)
-	req.CurrencyCode = strings.TrimSpace(req.CurrencyCode)
+	req.CurrencyCode = strings.ToUpper(strings.TrimSpace(req.CurrencyCode))
 	req.Locale = strings.TrimSpace(req.Locale)
 	req.Timezone = strings.TrimSpace(req.Timezone)
 	req.IncomeCadence = strings.TrimSpace(req.IncomeCadence)
@@ -71,11 +71,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.CurrencyCode == "" {
 		req.CurrencyCode = "USD"
 	}
+	if len(req.CurrencyCode) != 3 {
+		httpx.WriteError(w, http.StatusBadRequest, "currency_code must be a 3-letter ISO code")
+		return
+	}
 	if req.Locale == "" {
 		req.Locale = "en-US"
 	}
 	if req.Timezone == "" {
 		req.Timezone = "America/Chicago"
+	}
+	if _, err := time.LoadLocation(req.Timezone); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "timezone is invalid")
+		return
 	}
 	if req.IncomeCadence == "" {
 		req.IncomeCadence = "monthly"

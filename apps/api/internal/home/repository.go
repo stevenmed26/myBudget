@@ -2,9 +2,9 @@ package home
 
 import (
 	"context"
-	"mybudget-api/internal/db"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"mybudget-api/internal/db"
 )
 
 type Repository struct {
