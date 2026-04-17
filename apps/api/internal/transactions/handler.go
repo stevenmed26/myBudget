@@ -1,7 +1,6 @@
 package transactions
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -33,8 +32,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startDate := strings.TrimSpace(r.URL.Query().Get("start_date"))
-	endDate := strings.TrimSpace(r.URL.Query().Get("end_date"))
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
 
 	if startDate == "" || endDate == "" {
 		current := periods.GetCurrentPeriod(time.Now(), "weekly", 1, 1)
@@ -87,13 +86,18 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "amount_cents must be greater than zero")
 		return
 	}
-	if req.TransactionType == "" {
-		req.TransactionType = "expense"
-	}
-	if !isAllowedUserTransactionType(req.TransactionType) {
+
+	switch req.TransactionType {
+	case "", "expense":
+		if req.TransactionType == "" {
+			req.TransactionType = "expense"
+		}
+	case "income":
+	default:
 		httpx.WriteError(w, http.StatusBadRequest, "transaction_type must be expense or income")
 		return
 	}
+
 	if req.TransactionDate == "" {
 		req.TransactionDate = time.Now().Format("2006-01-02")
 	}
@@ -135,15 +139,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.SoftDelete(r.Context(), userID, transactionID); err != nil {
-		if errors.Is(err, ErrTransactionNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "transaction not found")
-			return
-		}
 		httpx.WriteInternalError(w, "transaction delete failed", err, "failed to delete transaction")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"deleted": true,
+	})
 }
 
 func isValidISODate(value string) bool {
