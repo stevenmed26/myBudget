@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 
 	"mybudget-api/internal/httpx"
@@ -27,8 +28,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Register(r.Context(), req)
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "failed to register user")
-		return
+		switch {
+		case errors.Is(err, ErrEmailPasswordRequired),
+			errors.Is(err, ErrInvalidEmailFormat),
+			errors.Is(err, ErrPasswordTooShort):
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		case errors.Is(err, ErrEmailAlreadyExists):
+			httpx.WriteError(w, http.StatusConflict, err.Error())
+			return
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to register user")
+			return
+		}
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, resp)
@@ -43,8 +55,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Login(r.Context(), req)
 	if err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid email or password")
-		return
+		switch {
+		case errors.Is(err, ErrEmailPasswordRequired),
+			errors.Is(err, ErrInvalidEmailFormat):
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		case errors.Is(err, ErrInvalidCredentials):
+			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
+			return
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to sign in")
+			return
+		}
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, resp)
@@ -59,8 +81,17 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Refresh(r.Context(), req.RefreshToken)
 	if err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
-		return
+		switch {
+		case errors.Is(err, ErrRefreshTokenRequired):
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		case errors.Is(err, ErrInvalidRefreshToken):
+			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
+			return
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to refresh session")
+			return
+		}
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, resp)

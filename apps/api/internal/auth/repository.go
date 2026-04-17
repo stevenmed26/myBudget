@@ -145,8 +145,6 @@ func (r *Repository) InsertRefreshToken(ctx context.Context, userID, rawToken st
 	return err
 }
 
-var ErrInvalidRefreshToken = errors.New("invalid refresh token")
-
 func (r *Repository) ConsumeRefreshToken(ctx context.Context, rawToken string) (string, error) {
 	const q = `
 		UPDATE refresh_tokens

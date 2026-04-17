@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Alert, SafeAreaView, ScrollView, Text, TextInput } from "react-native";
+import { Alert, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { Card } from "../components/Card";
 import { ActionButton } from "../components/ActionButton";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { SectionHeader } from "../components/SectionHeader";
+import { looksLikeEmail } from "../lib/validate";
 
 export function LoginScreen({
     colors,
@@ -17,6 +18,33 @@ export function LoginScreen({
 }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    async function handleSubmit() {
+        const trimmedEmail = email.trim();
+
+        setError(null);
+
+        if (!trimmedEmail || !password) {
+            setError("Email and password are required.");
+            return;
+        }
+        if (!looksLikeEmail(trimmedEmail)) {
+            setError("Enter a valid email address.");
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+            await onLogin(trimmedEmail, password);
+        } catch (err: any) {
+            setError(err?.message ?? "Login failed. Please try again.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -34,9 +62,14 @@ export function LoginScreen({
                         placeholder="Email"
                         placeholderTextColor={colors.textSoft}
                         autoCapitalize="none"
+                        autoCorrect={false}
                         keyboardType="email-address"
+                        textContentType="emailAddress"
                         value={email}
-                        onChangeText={setEmail}
+                        onChangeText={(value) => {
+                            setEmail(value);
+                            if (error) setError(null);
+                        }}
                         style={[
                             commonStyles.input,
                             { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceRaised },
@@ -48,28 +81,42 @@ export function LoginScreen({
                         placeholderTextColor={colors.textSoft}
                         secureTextEntry
                         value={password}
-                        onChangeText={setPassword}
+                        onChangeText={(value) => {
+                            setPassword(value);
+                            if (error) setError(null);
+                        }}
                         style={[
                             commonStyles.input,
                             { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceRaised },
                         ]}
                     />
 
+                    {error ? (
+                        <View
+                            style={{
+                                backgroundColor: colors.dangerSoft,
+                                borderColor: colors.danger,
+                                borderWidth: 1,
+                                borderRadius: 16,
+                                paddingHorizontal: 14,
+                                paddingVertical: 12,
+                            }}
+                        >
+                            <Text style={[commonStyles.caption, { color: colors.danger}]}>
+                                {error}
+                            </Text>
+                        </View>
+                    ) : null}
+
                     <ActionButton
-                        label="Sign In"
+                        label={submitting ? "Logging in..." : "Log in"}
                         colors={colors}
-                        onPress={async () => {
-                            try {
-                                await onLogin(email.trim(), password);
-                            } catch (err: any) {
-                                console.error("Login Failed", err);
-                                Alert.alert("Login Failed", err?.message ?? "Unknown error");
-                            }
-                        }}
+                        disabled={submitting}
+                        onPress={handleSubmit}
                     />
 
                     <Text
-                        onPress={onSwitchToSignUp}
+                        onPress={submitting ? undefined : onSwitchToSignUp}
                         style={[commonStyles.body, { color: colors.accent }]}
                     >
                         Need an account?

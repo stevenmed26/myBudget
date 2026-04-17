@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,18 @@ type Service struct {
 	cfg  config.Config
 }
 
+var emailPattern = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+
+var (
+	ErrEmailPasswordRequired = errors.New("email and password are required")
+	ErrInvalidEmailFormat    = errors.New("enter a valid email address")
+	ErrPasswordTooShort      = errors.New("password must be at least 8 characters")
+	ErrEmailAlreadyExists    = errors.New("email already registered")
+	ErrInvalidCredentials    = errors.New("invalid email or password")
+	ErrRefreshTokenRequired  = errors.New("refresh token is required")
+	ErrInvalidRefreshToken   = errors.New("invalid refresh token")
+)
+
 func NewService(repo *Repository, cfg config.Config) *Service {
 	return &Service{
 		repo: repo,
@@ -26,15 +39,22 @@ func NewService(repo *Repository, cfg config.Config) *Service {
 	}
 }
 
+func looksLikeEmail(email string) bool {
+	return emailPattern.MatchString(strings.TrimSpace(email))
+}
+
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	email := strings.TrimSpace(strings.ToLower(req.Email))
 	password := req.Password
 
 	if email == "" || password == "" {
-		return nil, errors.New("email and password are required")
+		return nil, ErrEmailPasswordRequired
+	}
+	if !looksLikeEmail(email) {
+		return nil, ErrInvalidEmailFormat
 	}
 	if len(password) < 8 {
-		return nil, errors.New("password must be at least 8 characters")
+		return nil, ErrPasswordTooShort
 	}
 
 	exists, err := s.repo.EmailExists(ctx, email)
@@ -42,7 +62,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 		return nil, err
 	}
 	if exists {
-		return nil, errors.New("email already registered")
+		return nil, ErrEmailAlreadyExists
 	}
 
 	pwHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -70,19 +90,19 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 	password := req.Password
 
 	if email == "" || password == "" {
-		return nil, errors.New("email and password are required")
+		return nil, ErrEmailPasswordRequired
 	}
 
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		return nil, ErrInvalidCredentials
 	}
 	if user.PasswordHash == nil {
-		return nil, errors.New("invalid email or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(password)); err != nil {
-		return nil, errors.New("invalid email or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	return s.issueTokens(ctx, user)
@@ -90,12 +110,12 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 
 func (s *Service) Refresh(ctx context.Context, rawRefreshToken string) (*AuthResponse, error) {
 	if strings.TrimSpace(rawRefreshToken) == "" {
-		return nil, errors.New("refresh token is required")
+		return nil, ErrRefreshTokenRequired
 	}
 
 	userID, err := s.repo.ConsumeRefreshToken(ctx, rawRefreshToken)
 	if err != nil {
-		return nil, errors.New("invalid refresh token")
+		return nil, ErrInvalidRefreshToken
 	}
 
 	user, err := s.repo.GetUserByID(ctx, userID)
