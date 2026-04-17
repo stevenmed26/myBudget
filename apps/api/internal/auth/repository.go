@@ -145,6 +145,33 @@ func (r *Repository) InsertRefreshToken(ctx context.Context, userID, rawToken st
 	return err
 }
 
+func (r *Repository) FindValidRefreshToken(ctx context.Context, rawToken string) (string, error) {
+	const q = `
+		SELECT user_id
+		FROM refresh_tokens
+		WHERE token_hash = $1
+		  AND revoked_at IS NULL
+		  AND expires_at > NOW()
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+
+	var userID string
+	err := r.db.Pool.QueryRow(ctx, q, hashToken(rawToken)).Scan(&userID)
+	return userID, err
+}
+
+func (r *Repository) RevokeRefreshToken(ctx context.Context, rawToken string) error {
+	const q = `
+		UPDATE refresh_tokens
+		SET revoked_at = NOW()
+		WHERE token_hash = $1
+		  AND revoked_at IS NULL
+	`
+	_, err := r.db.Pool.Exec(ctx, q, hashToken(rawToken))
+	return err
+}
+
 func (r *Repository) ConsumeRefreshToken(ctx context.Context, rawToken string) (string, error) {
 	const q = `
 		UPDATE refresh_tokens
@@ -161,4 +188,71 @@ func (r *Repository) ConsumeRefreshToken(ctx context.Context, rawToken string) (
 		return "", ErrInvalidRefreshToken
 	}
 	return userID, err
+}
+
+func (r *Repository) ReplaceVerificationCode(ctx context.Context, userID, email, rawCode string, expiresAt time.Time) error {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	const revokeOld = `
+		UPDATE email_verification_codes
+		SET consumed_at = NOW()
+		WHERE user_id = $1
+		  AND consumed_at IS NULL
+	`
+	if _, err := tx.Exec(ctx, revokeOld, userID); err != nil {
+		return err
+	}
+
+	const insertCode = `
+		INSERT INTO email_verification_codes (user_id, email, code_hash, expires_at)
+		VALUES ($1, $2, $3, $4)
+	`
+	if _, err := tx.Exec(ctx, insertCode, userID, email, hashToken(rawCode), expiresAt); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *Repository) ConsumeVerificationCode(ctx context.Context, email, rawCode string) (string, error) {
+	const q = `
+		WITH candidate AS (
+			SELECT id, user_id
+			FROM email_verification_codes
+			WHERE LOWER(email) = LOWER($1)
+			  AND code_hash = $2
+			  AND consumed_at IS NULL
+			  AND expires_at > NOW()
+			ORDER BY created_at DESC
+			LIMIT 1
+		)
+		UPDATE email_verification_codes evc
+		SET consumed_at = NOW()
+		FROM candidate
+		WHERE evc.id = candidate.id
+		RETURNING candidate.user_id
+	`
+
+	var userID string
+	err := r.db.Pool.QueryRow(ctx, q, email, hashToken(rawCode)).Scan(&userID)
+	return userID, err
+}
+
+func (r *Repository) MarkUserEmailVerified(ctx context.Context, userID string) error {
+	const q = `
+		UPDATE users
+		SET email_verified_at = NOW()
+		WHERE id = $1
+		  AND email_verified_at IS NULL
+	`
+	_, err := r.db.Pool.Exec(ctx, q, userID)
+	return err
+}
+
+func IsNotFound(err error) bool {
+	return err == pgx.ErrNoRows
 }

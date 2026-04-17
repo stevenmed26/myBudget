@@ -12,6 +12,7 @@ import { ProfileScreen } from "./screens/ProfileScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SignUpScreen } from "./screens/SignUpScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
+import { VerifyEmailScreen } from "./screens/VerifyEmailScreen";
 
 import { useAppColors } from "./styles/theme";
 import { useAppData } from "./hooks/useAppData";
@@ -23,13 +24,17 @@ import {
   setRefreshToken as storeRefreshToken,
 } from "./lib/secureStore";
 import {
-  fetchOnboardingStatus,
-  isUnauthorizedError,
   login,
   register,
+  verifyEmail,
+  resendVerification,
   setApiAuthToken,
+  fetchOnboardingStatus,
   submitOnboarding,
+  isUnauthorizedError,
+  ApiError,
 } from "./api";
+import { VerificationDelivery } from "./types";
 
 const Tab = createBottomTabNavigator();
 
@@ -159,10 +164,13 @@ export default function App() {
   const colors = useAppColors();
   const bootstrap = useAppBootstrap();
 
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "verify">("login");
   const [authToken, setAuthTokenState] = useState<string | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
+  const [verificationDelivery, setVerificationDelivery] =
+    useState<VerificationDelivery>("unknown");
 
   useEffect(() => {
     if (!bootstrap.isReady || authInitialized) return;
@@ -185,8 +193,6 @@ export default function App() {
         const status = await fetchOnboardingStatus();
         setOnboardingCompleted(status.completed);
       } catch (err) {
-        console.error("Failed loading onboarding status", err);
-
         if (isUnauthorizedError(err)) {
           await clearSession();
           setAuthTokenState(null);
@@ -197,7 +203,7 @@ export default function App() {
           return;
         }
 
-        setOnboardingCompleted((current) => current ?? false);
+        setOnboardingCompleted(null);
       }
     }
 
@@ -205,7 +211,10 @@ export default function App() {
   }, [authToken, bootstrap]);
 
   async function handleAuthSuccess(accessToken: string, refreshToken: string) {
-    await Promise.all([storeAccessToken(accessToken), storeRefreshToken(refreshToken)]);
+    await Promise.all([
+      storeAccessToken(accessToken),
+      storeRefreshToken(refreshToken),
+    ]);
 
     setAuthTokenState(accessToken);
     bootstrap.setAuthToken(accessToken);
@@ -217,19 +226,37 @@ export default function App() {
       const resp = await login({ email, password });
       await handleAuthSuccess(resp.access_token, resp.refresh_token);
     } catch (err) {
-      console.error("handleLogin failed", err);
+      if (
+        err instanceof ApiError &&
+        err.status === 403 &&
+        err.message.toLowerCase().includes("not verified")
+      ) {
+        setPendingVerificationEmail(email.trim().toLowerCase());
+        setVerificationDelivery("unknown");
+        setAuthMode("verify");
+      }
+
       throw err;
     }
   }
 
   async function handleSignUp(email: string, password: string) {
-    try {
-      const resp = await register({ email, password });
-      await handleAuthSuccess(resp.access_token, resp.refresh_token);
-    } catch (err) {
-      console.error("handleSignUp failed", err);
-      throw err;
-    }
+    const resp = await register({ email, password });
+    setPendingVerificationEmail(resp.email);
+    setVerificationDelivery(resp.delivery);
+    setAuthMode("verify");
+  }
+
+  async function handleVerifyEmail(email: string, code: string) {
+    const resp = await verifyEmail({ email, code });
+    await handleAuthSuccess(resp.access_token, resp.refresh_token);
+  }
+
+  async function handleResendVerification(email: string) {
+    const resp = await resendVerification({ email });
+    setPendingVerificationEmail(resp.email);
+    setVerificationDelivery(resp.delivery);
+    return resp.delivery;
   }
 
   async function handleLogout() {
@@ -238,6 +265,8 @@ export default function App() {
     bootstrap.setAuthToken(null);
     setApiAuthToken(null);
     setOnboardingCompleted(null);
+    setPendingVerificationEmail("");
+    setVerificationDelivery("unknown");
     setAuthMode("login");
   }
 
@@ -285,11 +314,20 @@ export default function App() {
             onLogin={handleLogin}
             onSwitchToSignUp={() => setAuthMode("signup")}
           />
-        ) : (
+        ) : authMode === "signup" ? (
           <SignUpScreen
             colors={colors}
             onSignUp={handleSignUp}
             onSwitchToLogin={() => setAuthMode("login")}
+          />
+        ) : (
+          <VerifyEmailScreen
+            colors={colors}
+            initialEmail={pendingVerificationEmail}
+            delivery={verificationDelivery}
+            onVerify={handleVerifyEmail}
+            onResend={handleResendVerification}
+            onBackToLogin={() => setAuthMode("login")}
           />
         )
       ) : onboardingCompleted === null ? (

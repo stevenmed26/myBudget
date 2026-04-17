@@ -78,6 +78,8 @@ func main() {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
+			r.Post("/verify-email", authHandler.VerifyEmail)
+			r.Post("/resend-verification", authHandler.ResendVerification)
 
 			r.With(auth.RequireAuth(cfg.JWTAccessSecret)).Get("/me", authHandler.Me)
 		})

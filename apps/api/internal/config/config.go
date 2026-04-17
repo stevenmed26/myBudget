@@ -15,6 +15,12 @@ type Config struct {
 	AccessTokenTTLMinutes string
 	RefreshTokenTTLDays   string
 	AppEnv                string
+
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
+	EmailFrom    string
 }
 
 func Load() Config {
@@ -28,6 +34,12 @@ func Load() Config {
 		AccessTokenTTLMinutes: getEnv("ACCESS_TOKEN_TTL_MINUTES", "15"),
 		RefreshTokenTTLDays:   getEnv("REFRESH_TOKEN_TTL_DAYS", "30"),
 		AppEnv:                getEnv("APP_ENV", "development"),
+
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPPort:     os.Getenv("SMTP_PORT"),
+		SMTPUsername: os.Getenv("SMTP_USERNAME"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		EmailFrom:    os.Getenv("EMAIL_FROM"),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -49,7 +61,7 @@ func Load() Config {
 func getEnv(key, fallback string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		log.Printf("Warning: %s not set, using default value", key)
+		log.Printf("Warning: %s not set, using default value: %s", key, fallback)
 		return fallback
 	}
 	return v

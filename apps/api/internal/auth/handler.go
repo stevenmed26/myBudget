@@ -60,11 +60,62 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, ErrInvalidEmailFormat):
 			httpx.WriteError(w, http.StatusBadRequest, err.Error())
 			return
+		case errors.Is(err, ErrEmailNotVerified):
+			httpx.WriteError(w, http.StatusForbidden, err.Error())
+			return
 		case errors.Is(err, ErrInvalidCredentials):
 			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
 			return
 		default:
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to sign in")
+			return
+		}
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	var req VerifyEmailRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	resp, err := h.service.VerifyEmail(r.Context(), req.Email, req.Code)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidEmailFormat),
+			errors.Is(err, ErrVerificationRequired):
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		case errors.Is(err, ErrInvalidVerification):
+			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
+			return
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to verify email")
+			return
+		}
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
+	var req ResendVerificationRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	resp, err := h.service.ResendVerification(r.Context(), req.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidEmailFormat):
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to resend verification")
 			return
 		}
 	}
@@ -81,17 +132,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Refresh(r.Context(), req.RefreshToken)
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrRefreshTokenRequired):
-			httpx.WriteError(w, http.StatusBadRequest, err.Error())
-			return
-		case errors.Is(err, ErrInvalidRefreshToken):
-			httpx.WriteError(w, http.StatusUnauthorized, err.Error())
-			return
-		default:
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to refresh session")
-			return
-		}
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, resp)

@@ -9,6 +9,8 @@ import {
   AuthUser,
   AuthResponse,
   OnboardingStatus,
+  RegisterResponse,
+  ResendVerificationResponse,
 } from "./types";
 
 const API_BASE_URL =
@@ -192,7 +194,7 @@ export async function register(input: { email: string; password: string }) {
     headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<AuthResponse>(res);
+  return handle<RegisterResponse>(res);
 }
 
 export async function login(input: { email: string; password: string }) {
@@ -202,6 +204,24 @@ export async function login(input: { email: string; password: string }) {
     body: JSON.stringify(input),
   });
   return handle<AuthResponse>(res);
+}
+
+export async function verifyEmail(input: { email: string; code: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<AuthResponse>(res);
+}
+
+export async function resendVerification(input: { email: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<ResendVerificationResponse>(res);
 }
 
 export async function refreshAccessToken(input: { refresh_token: string }) {

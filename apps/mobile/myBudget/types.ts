@@ -82,7 +82,7 @@ export type ClosePeriodResponse = {
   spent_amount_cents: number;
   leftover_amount_cents: number;
   saved_transaction_id?: string;
-  already_closed?: boolean;
+  already_closed: boolean;
 };
 
 export type AnalyticsCategorySlice = {
@@ -115,6 +115,24 @@ export type AuthResponse = {
   access_token: string;
   refresh_token: string;
   user: AuthUser;
+};
+
+export type VerificationDelivery =
+  | "email"
+  | "development_log"
+  | "unknown"
+  | "already_verified";
+
+export type RegisterResponse = {
+  requires_verification: boolean;
+  email: string;
+  delivery: VerificationDelivery;
+};
+
+export type ResendVerificationResponse = {
+  sent: boolean;
+  email: string;
+  delivery: VerificationDelivery;
 };
 
 export type OnboardingStatus = {
