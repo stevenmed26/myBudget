@@ -11,6 +11,8 @@ import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SignUpScreen } from "./screens/SignUpScreen";
+import { OnboardingScreen } from "./screens/OnboardingScreen";
+import { VerifyEmailScreen } from "./screens/VerifyEmailScreen";
 
 import { useAppColors } from "./styles/theme";
 import { useAppData } from "./hooks/useAppData";
@@ -24,8 +26,15 @@ import {
 import {
   login,
   register,
+  verifyEmail,
+  resendVerification,
   setApiAuthToken,
+  fetchOnboardingStatus,
+  submitOnboarding,
+  isUnauthorizedError,
+  ApiError,
 } from "./api";
+import { VerificationDelivery } from "./types";
 
 const Tab = createBottomTabNavigator();
 
@@ -134,12 +143,7 @@ function AuthenticatedApp({
       </Tab.Screen>
 
       <Tab.Screen name="Analytics">
-        {() => (
-          <AnalyticsScreen
-            colors={colors}
-            analytics={analytics}
-          />
-        )}
+        {() => <AnalyticsScreen colors={colors} analytics={analytics} />}
       </Tab.Screen>
 
       <Tab.Screen name="Profile">
@@ -160,9 +164,13 @@ export default function App() {
   const colors = useAppColors();
   const bootstrap = useAppBootstrap();
 
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "verify">("login");
   const [authToken, setAuthTokenState] = useState<string | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
+  const [verificationDelivery, setVerificationDelivery] =
+    useState<VerificationDelivery>("unknown");
 
   useEffect(() => {
     if (!bootstrap.isReady || authInitialized) return;
@@ -174,53 +182,81 @@ export default function App() {
     setApiAuthToken(authToken);
   }, [authToken]);
 
-  async function handleAuthSuccess(accessToken: string, refreshToken: string) {
-    console.log("handleAuthSuccess called");
-    console.log("accessToken?", !!accessToken);
-    console.log("refreshToken?", !!refreshToken);
+  useEffect(() => {
+    async function loadOnboardingStatus() {
+      if (!authToken) {
+        setOnboardingCompleted(null);
+        return;
+      }
 
+      try {
+        const status = await fetchOnboardingStatus();
+        setOnboardingCompleted(status.completed);
+      } catch (err) {
+        if (isUnauthorizedError(err)) {
+          await clearSession();
+          setAuthTokenState(null);
+          bootstrap.setAuthToken(null);
+          setApiAuthToken(null);
+          setOnboardingCompleted(null);
+          setAuthMode("login");
+          return;
+        }
+
+        setOnboardingCompleted(null);
+      }
+    }
+
+    loadOnboardingStatus();
+  }, [authToken, bootstrap]);
+
+  async function handleAuthSuccess(accessToken: string, refreshToken: string) {
     await Promise.all([
       storeAccessToken(accessToken),
       storeRefreshToken(refreshToken),
     ]);
 
-    console.log("tokens stored");
-
     setAuthTokenState(accessToken);
     bootstrap.setAuthToken(accessToken);
     setApiAuthToken(accessToken);
-
-    console.log("state updated");
   }
 
   async function handleLogin(email: string, password: string) {
-    console.log("handleLogin start", email);
-
     try {
       const resp = await login({ email, password });
-      console.log("login response", resp);
-
       await handleAuthSuccess(resp.access_token, resp.refresh_token);
-      console.log("handleLogin complete");
     } catch (err) {
-      console.error("handleLogin failed", err);
+      if (
+        err instanceof ApiError &&
+        err.status === 403 &&
+        err.message.toLowerCase().includes("not verified")
+      ) {
+        setPendingVerificationEmail(email.trim().toLowerCase());
+        setVerificationDelivery("unknown");
+        setAuthMode("verify");
+      }
+
       throw err;
     }
   }
 
   async function handleSignUp(email: string, password: string) {
-    console.log("handleSignUp start", email);
+    const resp = await register({ email, password });
+    setPendingVerificationEmail(resp.email);
+    setVerificationDelivery(resp.delivery);
+    setAuthMode("verify");
+  }
 
-    try {
-      const resp = await register({ email, password });
-      console.log("signup response", resp);
+  async function handleVerifyEmail(email: string, code: string) {
+    const resp = await verifyEmail({ email, code });
+    await handleAuthSuccess(resp.access_token, resp.refresh_token);
+  }
 
-      await handleAuthSuccess(resp.access_token, resp.refresh_token);
-      console.log("handleSignUp complete");
-    } catch (err) {
-      console.error("handleSignUp failed", err);
-      throw err;
-    }
+  async function handleResendVerification(email: string) {
+    const resp = await resendVerification({ email });
+    setPendingVerificationEmail(resp.email);
+    setVerificationDelivery(resp.delivery);
+    return resp.delivery;
   }
 
   async function handleLogout() {
@@ -228,7 +264,28 @@ export default function App() {
     setAuthTokenState(null);
     bootstrap.setAuthToken(null);
     setApiAuthToken(null);
+    setOnboardingCompleted(null);
+    setPendingVerificationEmail("");
+    setVerificationDelivery("unknown");
     setAuthMode("login");
+  }
+
+  async function handleOnboardingSubmit(input: {
+    tracking_cadence: "weekly" | "monthly";
+    week_starts_on: number;
+    monthly_anchor_day: number;
+    income_amount_cents: number;
+    income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
+    location_code: string;
+    estimated_tax_rate_bps: number;
+    category_budgets: {
+      category_name: string;
+      amount_cents: number;
+      cadence: "weekly" | "monthly" | "yearly";
+    }[];
+  }) {
+    await submitOnboarding(input);
+    setOnboardingCompleted(true);
   }
 
   if (!bootstrap.isReady || !authInitialized) {
@@ -248,27 +305,46 @@ export default function App() {
 
   const isAuthenticated = !!authToken;
 
-  console.log("bootstrap.isReady", bootstrap.isReady);
-  console.log("bootstrap.authToken", bootstrap.authToken);
-  console.log("authToken state", authToken);
-  console.log("isAuthenticated", !!authToken);
-
   return (
     <NavigationContainer>
-      {isAuthenticated ? (
-        <AuthenticatedApp colors={colors} onLogout={handleLogout} />
-      ) : authMode === "login" ? (
-        <LoginScreen
-          colors={colors}
-          onLogin={handleLogin}
-          onSwitchToSignUp={() => setAuthMode("signup")}
-        />
+      {!isAuthenticated ? (
+        authMode === "login" ? (
+          <LoginScreen
+            colors={colors}
+            onLogin={handleLogin}
+            onSwitchToSignUp={() => setAuthMode("signup")}
+          />
+        ) : authMode === "signup" ? (
+          <SignUpScreen
+            colors={colors}
+            onSignUp={handleSignUp}
+            onSwitchToLogin={() => setAuthMode("login")}
+          />
+        ) : (
+          <VerifyEmailScreen
+            colors={colors}
+            initialEmail={pendingVerificationEmail}
+            delivery={verificationDelivery}
+            onVerify={handleVerifyEmail}
+            onResend={handleResendVerification}
+            onBackToLogin={() => setAuthMode("login")}
+          />
+        )
+      ) : onboardingCompleted === null ? (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.bg,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      ) : !onboardingCompleted ? (
+        <OnboardingScreen colors={colors} onSubmit={handleOnboardingSubmit} />
       ) : (
-        <SignUpScreen
-          colors={colors}
-          onSignUp={handleSignUp}
-          onSwitchToLogin={() => setAuthMode("login")}
-        />
+        <AuthenticatedApp colors={colors} onLogout={handleLogout} />
       )}
     </NavigationContainer>
   );

@@ -116,3 +116,25 @@ export type AuthResponse = {
   refresh_token: string;
   user: AuthUser;
 };
+
+export type VerificationDelivery =
+  | "email"
+  | "development_log"
+  | "unknown"
+  | "already_verified";
+
+export type RegisterResponse = {
+  requires_verification: boolean;
+  email: string;
+  delivery: VerificationDelivery;
+};
+
+export type ResendVerificationResponse = {
+  sent: boolean;
+  email: string;
+  delivery: VerificationDelivery;
+};
+
+export type OnboardingStatus = {
+  completed: boolean;
+};

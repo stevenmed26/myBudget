@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Card } from "../components/Card";
 import { CategoryProgressRow } from "../components/CategoryProgressRow";
 import { HeroBudgetCard } from "../components/HeroBudgetCard";
@@ -30,31 +30,21 @@ export function HomeScreen({
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={commonStyles.screenContent}>
         <View style={{ gap: 6 }}>
-          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>myBudget</Text>
-          <Text style={[commonStyles.title, { color: colors.text }]}>Overview</Text>
+          <Text style={[commonStyles.eyebrow, { color: colors.textMuted }]}>
+            myBudget
+          </Text>
+          <Text style={[commonStyles.title, { color: colors.text }]}>
+            Overview
+          </Text>
         </View>
 
         <HeroBudgetCard
           colors={colors}
-          periodLabel={`${homeSummary?.period_start} - ${homeSummary?.period_end}`}
-          cadenceLabel={homeSummary?.tracking_cadence ?? "weekly"}
-          remaining={homeSummary?.remaining_amount_cents ?? 0}
-          budget={homeSummary?.net_income_budget_cents ?? 0}
-          spent={homeSummary?.spent_amount_cents ?? 0}
-          onClosePeriod={async () => {
-            try {
-              await onClosePeriod();
-            } catch (err: any) {
-              Alert.alert("Close failed", err?.message ?? "Unknown error");
-            }
-          }}
-          onRefresh={async () => {
-            try {
-              await onRefresh();
-            } catch (err: any) {
-              Alert.alert("Refresh failed", err?.message ?? "Unknown error");
-            }
-          }}
+          periodLabel={`${homeSummary?.period_start ?? "--"} - ${homeSummary?.period_end ?? "--"}`}
+          trackingCadence={homeSummary?.tracking_cadence ?? "weekly"}
+          remainingAmountCents={homeSummary?.remaining_amount_cents ?? 0}
+          netIncomeBudgetCents={homeSummary?.net_income_budget_cents ?? 0}
+          spentAmountCents={homeSummary?.spent_amount_cents ?? 0}
         />
 
         <View style={{ flexDirection: "row", gap: 12 }}>
@@ -79,16 +69,16 @@ export function HomeScreen({
           />
 
           <View style={{ gap: 8 }}>
-            {homeSummary?.category_progress_items.map((item) => (
+            {(homeSummary?.category_progress_items ?? []).map((item) => (
               <CategoryProgressRow
                 key={item.category_id}
                 colors={colors}
-                name={item.category_name}
-                color={item.category_color}
+                categoryName={item.category_name}
+                categoryColor={item.category_color}
                 percentUsed={item.percent_used}
-                spent={item.spent_amount_cents}
-                budget={item.budget_amount_cents}
-                remaining={item.remaining_amount_cents}
+                spentAmountCents={item.spent_amount_cents}
+                budgetAmountCents={item.budget_amount_cents}
+                remainingAmountCents={item.remaining_amount_cents}
               />
             ))}
           </View>

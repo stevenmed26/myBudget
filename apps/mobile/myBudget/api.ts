@@ -8,13 +8,31 @@ import {
   Transaction,
   AuthUser,
   AuthResponse,
+  OnboardingStatus,
+  RegisterResponse,
+  ResendVerificationResponse,
 } from "./types";
 
-const API_BASE_URL = "http://localhost:8080/api/v1";
-// iPhone const API_BASE_URL = "http://127.0.0.1:8080/api/v1";
-// Android const API_BASE_URL = "http://10.0.2.2:8080/api/v1";
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080/api/v1";
 
-let authToken : string | null = null;
+let authToken: string | null = null;
+
+export class ApiError extends Error {
+  status: number;
+  body?: unknown;
+
+  constructor(message: string, status: number, body?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function isUnauthorizedError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
 
 export function setApiAuthToken(token: string | null) {
   authToken = token;
@@ -28,12 +46,35 @@ function buildHeaders(extra?: Record<string, string>) {
   };
 }
 
-async function handle<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `request failed: ${res.status}`);
+function safeJsonParse(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
   }
-  return res.json() as Promise<T>;
+}
+
+async function handle<T>(res: Response): Promise<T> {
+  const rawText = await res.text();
+  const body = rawText ? safeJsonParse(rawText) : undefined;
+
+  if (!res.ok) {
+    const message =
+      typeof body === "object" &&
+      body !== null &&
+      "error" in body &&
+      typeof (body as { error?: unknown }).error === "string"
+        ? (body as { error: string }).error
+        : rawText || `request failed: ${res.status}`;
+
+    throw new ApiError(message, res.status, body);
+  }
+
+  if (!rawText) {
+    return undefined as T;
+  }
+
+  return (body as T) ?? (JSON.parse(rawText) as T);
 }
 
 export async function fetchCategories(): Promise<Category[]> {
@@ -153,7 +194,7 @@ export async function register(input: { email: string; password: string }) {
     headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<AuthResponse>(res);
+  return handle<RegisterResponse>(res);
 }
 
 export async function login(input: { email: string; password: string }) {
@@ -165,7 +206,25 @@ export async function login(input: { email: string; password: string }) {
   return handle<AuthResponse>(res);
 }
 
-export async function refreshAccessToken(input: { email: string; password: string }) {
+export async function verifyEmail(input: { email: string; code: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<AuthResponse>(res);
+}
+
+export async function resendVerification(input: { email: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<ResendVerificationResponse>(res);
+}
+
+export async function refreshAccessToken(input: { refresh_token: string }) {
   const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: "POST",
     headers: buildHeaders(),
@@ -174,9 +233,38 @@ export async function refreshAccessToken(input: { email: string; password: strin
   return handle<AuthResponse>(res);
 }
 
-export async function fetchMe() {
+export async function fetchMe(): Promise<AuthUser> {
   const res = await fetch(`${API_BASE_URL}/auth/me`, {
     headers: buildHeaders(),
   });
-  return handle<AuthResponse>(res);
+  return handle<AuthUser>(res);
+}
+
+export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
+  const res = await fetch(`${API_BASE_URL}/onboarding/status`, {
+    headers: buildHeaders(),
+  });
+  return handle<OnboardingStatus>(res);
+}
+
+export async function submitOnboarding(input: {
+  tracking_cadence: "weekly" | "monthly";
+  week_starts_on: number;
+  monthly_anchor_day: number;
+  income_amount_cents: number;
+  income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
+  location_code: string;
+  estimated_tax_rate_bps: number;
+  category_budgets: {
+    category_name: string;
+    amount_cents: number;
+    cadence: "weekly" | "monthly" | "yearly";
+  }[];
+}) {
+  const res = await fetch(`${API_BASE_URL}/onboarding/submit`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<OnboardingStatus>(res);
 }

@@ -7,14 +7,26 @@ export function ActionButton({
   label,
   onPress,
   colors,
+  disabled = false,
 }: {
   label: string;
   onPress: () => void | Promise<void>;
   colors: ThemeColors;
+  disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={[commonStyles.button, { backgroundColor: colors.accent }]}>
-      <Text style={commonStyles.buttonText}>{label}</Text>
+    <Pressable 
+        onPress={onPress}
+        disabled={disabled}
+        style={[
+            commonStyles.button,
+            {
+                backgroundColor: disabled ? colors.textMuted : colors.accent,
+                opacity: disabled ? 0.7 : 1,
+            },
+        ]}
+    >
+        <Text style={commonStyles.buttonText}>{label}</Text>
     </Pressable>
   );
 }

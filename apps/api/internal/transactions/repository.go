@@ -2,9 +2,12 @@ package transactions
 
 import (
 	"context"
+	"errors"
 
 	"mybudget-api/internal/db"
 )
+
+var ErrTransactionNotFound = errors.New("transaction not found")
 
 type Repository struct {
 	db *db.DB
@@ -109,6 +112,12 @@ func (r *Repository) SoftDelete(ctx context.Context, userID, transactionID strin
 			AND deleted_at IS NULL
 	`
 
-	_, err := r.db.Pool.Exec(ctx, q, transactionID, userID)
-	return err
+	cmd, err := r.db.Pool.Exec(ctx, q, transactionID, userID)
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() == 0 {
+		return ErrTransactionNotFound
+	}
+	return nil
 }

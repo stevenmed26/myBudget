@@ -14,8 +14,10 @@ import (
 	"mybudget-api/internal/config"
 	"mybudget-api/internal/dashboard"
 	"mybudget-api/internal/db"
+	"mybudget-api/internal/devlog"
 	"mybudget-api/internal/home"
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/onboarding"
 	"mybudget-api/internal/periodclose"
 	"mybudget-api/internal/profile"
 	"mybudget-api/internal/transactions"
@@ -23,11 +25,15 @@ import (
 
 func main() {
 	cfg := config.Load()
+	devlog.Infof("main: config loaded api_port=%s app_env=%s", cfg.APIPort, cfg.AppEnv)
+
 	database := db.New(cfg.DatabaseURL)
+	devlog.Infof("main: database initialized")
 
 	authRepo := auth.NewRepository(database)
 	authService := auth.NewService(authRepo, cfg)
 	authHandler := auth.NewHandler(authService, authRepo)
+	devlog.Debugf("main: auth module wired")
 
 	categoryRepo := categories.NewRepository(database)
 	categoryHandler := categories.NewHandler(categoryRepo)
@@ -55,6 +61,9 @@ func main() {
 	analyticsRepo := analytics.NewRepository(database)
 	analyticsHandler := analytics.NewHandler(analyticsRepo)
 
+	onboardingRepo := onboarding.NewRepository(database)
+	onboardingHandler := onboarding.NewHandler(onboardingRepo)
+
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -64,8 +73,10 @@ func main() {
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
+	devlog.Debugf("main: cors middleware configured")
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		devlog.Debugf("main: health check hit remote=%s", r.RemoteAddr)
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
@@ -74,12 +85,17 @@ func main() {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
+			r.Post("/verify-email", authHandler.VerifyEmail)
+			r.Post("/resend-verification", authHandler.ResendVerification)
 
 			r.With(auth.RequireAuth(cfg.JWTAccessSecret)).Get("/me", authHandler.Me)
 		})
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireAuth(cfg.JWTAccessSecret))
+
+			r.Get("/onboarding/status", onboardingHandler.Status)
+			r.Post("/onboarding/submit", onboardingHandler.Submit)
 
 			r.Get("/categories", categoryHandler.List)
 			r.Post("/categories", categoryHandler.Create)
@@ -105,5 +121,6 @@ func main() {
 
 	addr := ":" + cfg.APIPort
 	log.Printf("myBudget API running on %s", addr)
+	devlog.Infof("main: starting server addr=%s", addr)
 	log.Fatal(http.ListenAndServe(addr, r))
 }
