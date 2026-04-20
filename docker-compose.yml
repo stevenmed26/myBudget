@@ -34,6 +34,7 @@ services:
       JWT_REFRESH_SECRET: dev-refresh-secret-change-me
       ACCESS_TOKEN_TTL_MINUTES: 15
       REFRESH_TOKEN_TTL_DAYS: 30
+      APP_ENV: development
     ports:
       - "8080:8080"
 

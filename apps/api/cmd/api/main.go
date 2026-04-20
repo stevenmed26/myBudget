@@ -14,6 +14,7 @@ import (
 	"mybudget-api/internal/config"
 	"mybudget-api/internal/dashboard"
 	"mybudget-api/internal/db"
+	"mybudget-api/internal/devlog"
 	"mybudget-api/internal/home"
 	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/onboarding"
@@ -24,11 +25,15 @@ import (
 
 func main() {
 	cfg := config.Load()
+	devlog.Infof("main: config loaded api_port=%s app_env=%s", cfg.APIPort, cfg.AppEnv)
+
 	database := db.New(cfg.DatabaseURL)
+	devlog.Infof("main: database initialized")
 
 	authRepo := auth.NewRepository(database)
 	authService := auth.NewService(authRepo, cfg)
 	authHandler := auth.NewHandler(authService, authRepo)
+	devlog.Debugf("main: auth module wired")
 
 	categoryRepo := categories.NewRepository(database)
 	categoryHandler := categories.NewHandler(categoryRepo)
@@ -68,8 +73,10 @@ func main() {
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
+	devlog.Debugf("main: cors middleware configured")
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		devlog.Debugf("main: health check hit remote=%s", r.RemoteAddr)
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
@@ -114,5 +121,6 @@ func main() {
 
 	addr := ":" + cfg.APIPort
 	log.Printf("myBudget API running on %s", addr)
+	devlog.Infof("main: starting server addr=%s", addr)
 	log.Fatal(http.ListenAndServe(addr, r))
 }

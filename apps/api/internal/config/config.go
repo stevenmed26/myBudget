@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+
+	"mybudget-api/internal/devlog"
 )
 
 type Config struct {
@@ -25,6 +27,7 @@ type Config struct {
 
 func Load() Config {
 	_ = godotenv.Load()
+	devlog.Debugf("config: attempted .env load")
 
 	cfg := Config{
 		APIPort:               getEnv("API_PORT", "8080"),
@@ -41,6 +44,15 @@ func Load() Config {
 		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 		EmailFrom:    os.Getenv("EMAIL_FROM"),
 	}
+
+	devlog.Infof(
+		"config: loaded app_env=%s api_port=%s access_ttl=%s refresh_ttl_days=%s db_url_set=%t",
+		cfg.AppEnv,
+		cfg.APIPort,
+		cfg.AccessTokenTTLMinutes,
+		cfg.RefreshTokenTTLDays,
+		cfg.DatabaseURL != "",
+	)
 
 	if cfg.DatabaseURL == "" {
 		log.Fatal("DATABASE_URL is required")
@@ -62,7 +74,9 @@ func getEnv(key, fallback string) string {
 	v := os.Getenv(key)
 	if v == "" {
 		log.Printf("Warning: %s not set, using default value: %s", key, fallback)
+		devlog.Warnf("config: env missing key=%s using fallback", key)
 		return fallback
 	}
+	devlog.Debugf("config: env present key=%s", key)
 	return v
 }
