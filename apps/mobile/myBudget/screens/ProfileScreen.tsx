@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
+import { ToggleRow } from "../components/ToggleRow";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { BudgetProfile, Category, RecurringRule } from "../types";
@@ -85,49 +86,13 @@ export function ProfileScreen({
             colors={colors}
           />
 
-          <Pressable
-            onPress={() => setSmartBudgetingEnabled((value) => !value)}
-            style={[
-              commonStyles.rowBetween,
-              {
-                borderWidth: 1,
-                borderColor: smartBudgetingEnabled ? colors.accent : colors.border,
-                borderRadius: 18,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                backgroundColor: smartBudgetingEnabled ? colors.accentSoft : colors.surfaceRaised,
-              },
-            ]}
-          >
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={[commonStyles.label, { color: colors.text }]}>
-                Smart budgeting
-              </Text>
-              <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
-                Show high-confidence budget recommendations
-              </Text>
-            </View>
-
-            <View
-              style={{
-                width: 42,
-                height: 24,
-                borderRadius: 999,
-                padding: 3,
-                backgroundColor: smartBudgetingEnabled ? colors.accent : colors.border,
-                alignItems: smartBudgetingEnabled ? "flex-end" : "flex-start",
-              }}
-            >
-              <View
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 999,
-                  backgroundColor: colors.white,
-                }}
-              />
-            </View>
-          </Pressable>
+          <ToggleRow
+            colors={colors}
+            title="Smart budgeting"
+            subtitle="Show high-confidence budget recommendations"
+            enabled={smartBudgetingEnabled}
+            onToggle={() => setSmartBudgetingEnabled((value) => !value)}
+          />
 
           <Pressable
             onPress={async () => {

@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../components/Card";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
+import { ToggleRow } from "../components/ToggleRow";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { Category, Transaction } from "../types";
@@ -165,49 +166,13 @@ export function TransactionsScreen({
             />
           </View>
 
-          <Pressable
-            onPress={() => setIsRecurring((value) => !value)}
-            style={[
-              commonStyles.rowBetween,
-              {
-                borderWidth: 1,
-                borderColor: isRecurring ? colors.accent : colors.border,
-                borderRadius: 18,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                backgroundColor: isRecurring ? colors.accentSoft : colors.surfaceRaised,
-              },
-            ]}
-          >
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={[commonStyles.label, { color: colors.text }]}>
-                Make this recurring
-              </Text>
-              <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
-                Create a repeating expense rule from this entry
-              </Text>
-            </View>
-
-            <View
-              style={{
-                width: 42,
-                height: 24,
-                borderRadius: 999,
-                padding: 3,
-                backgroundColor: isRecurring ? colors.accent : colors.border,
-                alignItems: isRecurring ? "flex-end" : "flex-start",
-              }}
-            >
-              <View
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 999,
-                  backgroundColor: colors.white,
-                }}
-              />
-            </View>
-          </Pressable>
+          <ToggleRow
+            colors={colors}
+            title="Make this recurring"
+            subtitle="Create a repeating expense rule from this entry"
+            enabled={isRecurring}
+            onToggle={() => setIsRecurring((value) => !value)}
+          />
 
           {isRecurring ? (
             <View style={{ gap: 14 }}>

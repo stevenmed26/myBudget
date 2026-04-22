@@ -19,7 +19,7 @@ import {
   updateRecurringRule,
   deleteRecurringRule,
 } from "../api";
-import { devError, devLog } from "../lib/devlog";
+import { devError, devLog, devWarn } from "../lib/devlog";
 import { todayISO } from "../lib/format";
 import {
   AnalyticsSummary,
@@ -45,16 +45,22 @@ export function useAppData(enabled: boolean) {
   const loadAll = useCallback(async () => {
     if (!enabled) return;
 
-    const txs = await fetchTransactions();
+    const [txs, prof] = await Promise.all([fetchTransactions(), fetchProfile()]);
 
-    const [cats, home, prof, budgetItems, analyticsSummary, suggestions, recurringItems] =
+    const suggestionsPromise = prof.smart_budgeting_enabled
+      ? fetchBudgetSuggestions().catch((err) => {
+          devWarn("budget suggestions load failed", err);
+          return null;
+        })
+      : Promise.resolve(null);
+
+    const [cats, home, budgetItems, analyticsSummary, suggestions, recurringItems] =
       await Promise.all([
         fetchCategories(),
         fetchHomeSummary(),
-        fetchProfile(),
         fetchCategoryBudgets(),
         fetchAnalyticsSummary(),
-        fetchBudgetSuggestions(),
+        suggestionsPromise,
         fetchRecurringRules(),
       ]);
 
