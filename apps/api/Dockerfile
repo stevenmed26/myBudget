@@ -22,6 +22,7 @@ RUN adduser -D -g '' appuser
 USER appuser
 
 COPY --from=builder /mybudget-api /usr/local/bin/mybudget-api
+COPY db ./db
 
 EXPOSE 8080
 
