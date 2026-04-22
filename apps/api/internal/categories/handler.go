@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgconn"
 
 	"mybudget-api/internal/auth"
+	"mybudget-api/internal/devlog"
 	"mybudget-api/internal/httpx"
 )
 
@@ -89,6 +90,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	devlog.Infof("category created user_id=%s category_id=%s name=%q", userID, item.ID, item.Name)
 	httpx.WriteJSON(w, http.StatusCreated, item)
 }
 
@@ -114,5 +116,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	devlog.Infof("category archived user_id=%s category_id=%s", userID, categoryID)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true})
 }

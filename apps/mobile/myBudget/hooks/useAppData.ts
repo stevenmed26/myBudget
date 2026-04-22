@@ -18,6 +18,7 @@ import {
   updateRecurringRule,
   deleteRecurringRule,
 } from "../api";
+import { devError } from "../lib/devlog";
 import { todayISO } from "../lib/format";
 import {
   AnalyticsSummary,
@@ -258,7 +259,7 @@ export function useAppData(enabled: boolean) {
     if (!enabled) return;
 
     loadAll().catch((err) => {
-      console.error("useAppData loadAll failed", err);
+      devError("useAppData loadAll failed", err);
     });
   }, [enabled, loadAll]);
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"mybudget-api/internal/auth"
+	"mybudget-api/internal/devlog"
 	"mybudget-api/internal/profile"
 )
 
@@ -50,6 +51,16 @@ func (s *Service) SyncDueRulesForUser(ctx context.Context, userID string, throug
 		if advanced {
 			result.AdvancedRules++
 		}
+	}
+
+	if result.CreatedTransactions > 0 || result.AdvancedRules > 0 {
+		devlog.Infof(
+			"recurring sync applied user_id=%s through_date=%s created_transactions=%d advanced_rules=%d",
+			userID,
+			throughDate,
+			result.CreatedTransactions,
+			result.AdvancedRules,
+		)
 	}
 
 	return result, nil
