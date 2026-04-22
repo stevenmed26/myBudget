@@ -11,6 +11,10 @@ import {
   fetchTransactions,
   updateProfile,
   upsertCategoryBudget,
+  fetchRecurringRules,
+  createRecurringRule,
+  updateRecurringRule,
+  deleteRecurringRule,
 } from "../api";
 import { todayISO } from "../lib/format";
 import {
@@ -20,6 +24,7 @@ import {
   CategoryBudget,
   HomeSummary,
   Transaction,
+  RecurringRule,
 } from "../types";
 
 export function useAppData(enabled: boolean) {
@@ -29,18 +34,22 @@ export function useAppData(enabled: boolean) {
   const [homeSummary, setHomeSummary] = useState<HomeSummary | null>(null);
   const [profile, setProfile] = useState<BudgetProfile | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
 
   const loadAll = useCallback(async () => {
     if (!enabled) return;
 
-    const [cats, txs, home, prof, budgetItems, analyticsSummary] = await Promise.all([
-      fetchCategories(),
-      fetchTransactions(),
-      fetchHomeSummary(),
-      fetchProfile(),
-      fetchCategoryBudgets(),
-      fetchAnalyticsSummary(),
-    ]);
+    const txs = await fetchTransactions();
+
+    const [cats, home, prof, budgetItems, analyticsSummary, recurringItems] =
+      await Promise.all([
+        fetchCategories(),
+        fetchHomeSummary(),
+        fetchProfile(),
+        fetchCategoryBudgets(),
+        fetchAnalyticsSummary(),
+        fetchRecurringRules(),
+      ]);
 
     setCategories(cats);
     setTransactions(txs);
@@ -48,6 +57,7 @@ export function useAppData(enabled: boolean) {
     setProfile(prof);
     setBudgets(budgetItems);
     setAnalytics(analyticsSummary);
+    setRecurringRules(recurringItems);
   }, [enabled]);
 
   async function addExpense(input: {
@@ -55,21 +65,82 @@ export function useAppData(enabled: boolean) {
     amount: string;
     merchant_name: string;
     note: string;
+    is_recurring?: boolean;
+    frequency?: "weekly" | "biweekly" | "monthly" | "yearly";
+    start_date?: string;
   }) {
     const parsed = Number(input.amount);
     if (!input.category_id || Number.isNaN(parsed) || parsed <= 0) {
       throw new Error("Enter a valid category and amount");
     }
 
-    await createTransaction({
-      category_id: input.category_id,
-      amount_cents: Math.round(parsed * 100),
-      transaction_type: "expense",
-      transaction_date: todayISO(),
-      merchant_name: input.merchant_name || undefined,
-      note: input.note || undefined,
-    });
+    if (input.is_recurring) {
+      const category = categories.find((item) => item.id === input.category_id);
+      const name = input.merchant_name.trim() || input.note.trim() || category?.name || "Recurring expense";
 
+      await createRecurringRule({
+        category_id: input.category_id,
+        name,
+        amount_cents: Math.round(parsed * 100),
+        rule_type: "expense",
+        frequency: input.frequency ?? "monthly",
+        start_date: input.start_date?.trim() || todayISO(),
+        end_date: null,
+      });
+    } else {
+      await createTransaction({
+        category_id: input.category_id,
+        amount_cents: Math.round(parsed * 100),
+        transaction_type: "expense",
+        transaction_date: todayISO(),
+        merchant_name: input.merchant_name || undefined,
+        note: input.note || undefined,
+      });
+    }
+
+    await loadAll();
+  }
+
+  async function saveRecurringRule(input: {
+    ruleID?: string;
+    category_id: string;
+    name: string;
+    amount: string;
+    rule_type: "expense" | "income";
+    frequency: "weekly" | "biweekly" | "monthly" | "yearly";
+    start_date: string;
+    end_date?: string | null;
+    active?: boolean;
+  }) {
+    const parsed = Number(input.amount);
+    if (!input.category_id || !input.name.trim() || Number.isNaN(parsed) || parsed <= 0) {
+      throw new Error("Enter a valid recurring rule");
+    }
+
+    const payload = {
+      category_id: input.category_id,
+      name: input.name.trim(),
+      amount_cents: Math.round(parsed * 100),
+      rule_type: input.rule_type,
+      frequency: input.frequency,
+      start_date: input.start_date,
+      end_date: input.end_date?.trim() ? input.end_date.trim() : null,
+    };
+
+    if (input.ruleID) {
+      await updateRecurringRule(input.ruleID, {
+        ...payload,
+        active: input.active ?? true,
+      });
+    } else {
+      await createRecurringRule(payload);
+    }
+
+    await loadAll();
+  }
+
+  async function removeRecurringRule(ruleID: string) {
+    await deleteRecurringRule(ruleID);
     await loadAll();
   }
 
@@ -160,5 +231,8 @@ export function useAppData(enabled: boolean) {
     saveBudget,
     saveProfile,
     closePeriod,
+    recurringRules,
+    saveRecurringRule,
+    removeRecurringRule,
   };
 }

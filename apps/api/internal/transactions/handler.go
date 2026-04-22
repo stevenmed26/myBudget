@@ -53,17 +53,17 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.recurringService != nil {
+		if _, err := h.recurringService.SyncDueRules(r.Context(), ""); err != nil {
+			httpx.WriteInternalError(w, "recurring sync before transactions failed", err, "failed to load transactions")
+			return
+		}
+	}
+
 	items, err := h.repo.ListByUserAndDateRange(r.Context(), userID, startDate, endDate)
 	if err != nil {
 		httpx.WriteInternalError(w, "transactions list failed", err, "failed to load transactions")
 		return
-	}
-
-	if h.recurringService != nil {
-		if _, err := h.recurringService.SyncDueRules(r.Context(), endDate); err != nil {
-			httpx.WriteInternalError(w, "recurring sync before transactions failed", err, "failed to load transactions")
-			return
-		}
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{

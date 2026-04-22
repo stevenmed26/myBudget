@@ -9,11 +9,12 @@ import {
   View,
 } from "react-native";
 import { Card } from "../components/Card";
+import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { Category, Transaction } from "../types";
-import { formatCents } from "../lib/format";
+import { formatCents, todayISO } from "../lib/format";
 
 export function TransactionsScreen({
   colors,
@@ -30,6 +31,9 @@ export function TransactionsScreen({
     amount: string;
     merchant_name: string;
     note: string;
+    is_recurring?: boolean;
+    frequency?: "weekly" | "biweekly" | "monthly" | "yearly";
+    start_date?: string;
   }) => Promise<void>;
   onDeleteTransaction: (transactionID: string) => Promise<void>;
 }) {
@@ -37,6 +41,10 @@ export function TransactionsScreen({
   const [amount, setAmount] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [note, setNote] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [frequency, setFrequency] =
+    useState<"weekly" | "biweekly" | "monthly" | "yearly">("monthly");
+  const [startDate, setStartDate] = useState(todayISO());
 
   useEffect(() => {
     if (!selectedCategoryId && categories.length > 0) {
@@ -157,6 +165,86 @@ export function TransactionsScreen({
           </View>
 
           <Pressable
+            onPress={() => setIsRecurring((value) => !value)}
+            style={[
+              commonStyles.rowBetween,
+              {
+                borderWidth: 1,
+                borderColor: isRecurring ? colors.accent : colors.border,
+                borderRadius: 18,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                backgroundColor: isRecurring ? colors.accentSoft : colors.surfaceRaised,
+              },
+            ]}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[commonStyles.label, { color: colors.text }]}>
+                Make this recurring
+              </Text>
+              <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                Create a repeating expense rule from this entry
+              </Text>
+            </View>
+
+            <View
+              style={{
+                width: 42,
+                height: 24,
+                borderRadius: 999,
+                padding: 3,
+                backgroundColor: isRecurring ? colors.accent : colors.border,
+                alignItems: isRecurring ? "flex-end" : "flex-start",
+              }}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 999,
+                  backgroundColor: colors.white,
+                }}
+              />
+            </View>
+          </Pressable>
+
+          {isRecurring ? (
+            <View style={{ gap: 14 }}>
+              <View style={{ gap: 8 }}>
+                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>
+                  Frequency
+                </Text>
+                <PillSelector
+                  options={["weekly", "biweekly", "monthly", "yearly"] as const}
+                  selected={frequency}
+                  onSelect={setFrequency}
+                  colors={colors}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>
+                  Start date
+                </Text>
+                <TextInput
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textSoft}
+                  value={startDate}
+                  onChangeText={setStartDate}
+                  style={[
+                    commonStyles.input,
+                    {
+                      borderColor: colors.border,
+                      color: colors.text,
+                      backgroundColor: colors.surfaceRaised,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : null}
+
+          <Pressable
             onPress={async () => {
               try {
                 await onAddExpense({
@@ -164,11 +252,17 @@ export function TransactionsScreen({
                   amount,
                   merchant_name: merchantName,
                   note,
+                  is_recurring: isRecurring,
+                  frequency,
+                  start_date: startDate,
                 });
 
                 setAmount("");
                 setMerchantName("");
                 setNote("");
+                setIsRecurring(false);
+                setFrequency("monthly");
+                setStartDate(todayISO());
               } catch (err: any) {
                 Alert.alert("Add failed", err?.message ?? "Unknown error");
               }
@@ -180,7 +274,9 @@ export function TransactionsScreen({
               },
             ]}
           >
-            <Text style={commonStyles.buttonText}>Add Expense</Text>
+            <Text style={commonStyles.buttonText}>
+              {isRecurring ? "Add Recurring Expense" : "Add Expense"}
+            </Text>
           </Pressable>
         </Card>
 

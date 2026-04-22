@@ -52,12 +52,14 @@ function AuthenticatedApp({
     homeSummary,
     profile,
     analytics,
+    recurringRules,
     loadAll,
     addExpense,
     removeTransaction,
     saveBudget,
     saveProfile,
     closePeriod,
+    removeRecurringRule,
   } = useAppData(true);
 
   async function handleClosePeriod() {
@@ -151,7 +153,10 @@ function AuthenticatedApp({
           <ProfileScreen
             colors={colors}
             profile={profile}
+            categories={categories}
+            recurringRules={recurringRules}
             onSaveProfile={saveProfile}
+            onRemoveRecurringRule={removeRecurringRule}
             onLogout={onLogout}
           />
         )}

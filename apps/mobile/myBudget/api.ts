@@ -9,6 +9,7 @@ import {
   AuthUser,
   AuthResponse,
   OnboardingStatus,
+  RecurringRule,
   RegisterResponse,
   ResendVerificationResponse,
 } from "./types";
@@ -111,6 +112,60 @@ export async function createTransaction(input: {
 
 export async function deleteTransaction(transactionID: string) {
   const res = await fetch(`${API_BASE_URL}/transactions/${transactionID}`, {
+    method: "DELETE",
+    headers: buildHeaders(),
+  });
+  return handle<{ deleted: boolean }>(res);
+}
+
+export async function fetchRecurringRules(): Promise<RecurringRule[]> {
+  const res = await fetch(`${API_BASE_URL}/recurring-rules`, {
+    headers: buildHeaders(),
+  });
+  const data = await handle<{ recurring_rules: RecurringRule[] }>(res);
+  return data.recurring_rules;
+}
+
+export async function createRecurringRule(input: {
+  category_id: string;
+  name: string;
+  amount_cents: number;
+  rule_type: "expense" | "income";
+  frequency: "weekly" | "biweekly" | "monthly" | "yearly";
+  start_date: string;
+  end_date?: string | null;
+}) {
+  const res = await fetch(`${API_BASE_URL}/recurring-rules`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<RecurringRule>(res);
+}
+
+export async function updateRecurringRule(
+  ruleID: string,
+  input: {
+    category_id: string;
+    name: string;
+    amount_cents: number;
+    rule_type: "expense" | "income";
+    frequency: "weekly" | "biweekly" | "monthly" | "yearly";
+    start_date: string;
+    end_date?: string | null;
+    active: boolean;
+  }
+) {
+  const res = await fetch(`${API_BASE_URL}/recurring-rules/${ruleID}`, {
+    method: "PUT",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<RecurringRule>(res);
+}
+
+export async function deleteRecurringRule(ruleID: string) {
+  const res = await fetch(`${API_BASE_URL}/recurring-rules/${ruleID}`, {
     method: "DELETE",
     headers: buildHeaders(),
   });
