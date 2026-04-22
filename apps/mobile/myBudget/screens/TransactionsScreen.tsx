@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../components/Card";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
@@ -306,7 +307,7 @@ export function TransactionsScreen({
                     gap: 6,
                   }}
                 >
-                  <View style={commonStyles.rowBetween}>
+                  <View style={[commonStyles.rowBetween, { alignItems: "flex-start" }]}>
                     <View style={{ flex: 1, gap: 2, paddingRight: 12 }}>
                       <Text style={[commonStyles.label, { color: colors.text }]}>
                         {item.merchant_name || category?.name || "Transaction"}
@@ -323,41 +324,43 @@ export function TransactionsScreen({
                       ) : null}
                     </View>
 
-                    <Text
-                      style={[
-                        commonStyles.money,
-                        {
-                          color: isExpense ? colors.danger : colors.success,
-                          fontSize: 18,
-                        },
-                      ]}
-                    >
-                      {isExpense ? "-" : "+"}
-                      {formatCents(item.amount_cents)}
-                    </Text>
-                  </View>
+                    <View style={{ alignItems: "flex-end", gap: 8 }}>
+                      <Text
+                        style={[
+                          commonStyles.money,
+                          {
+                            color: isExpense ? colors.danger : colors.success,
+                            fontSize: 18,
+                          },
+                        ]}
+                      >
+                        {isExpense ? "-" : "+"}
+                        {formatCents(item.amount_cents)}
+                      </Text>
 
-                  <Pressable
-                    onPress={async () => {
-                      try {
-                        await onDeleteTransaction(item.id);
-                      } catch (err: any) {
-                        Alert.alert("Delete failed", err?.message ?? "Unknown error");
-                      }
-                    }}
-                    style={[
-                      commonStyles.secondaryButton,
-                      {
-                        alignSelf: "flex-start",
-                        borderColor: colors.border,
-                        backgroundColor: colors.surfaceRaised,
-                      },
-                    ]}
-                  >
-                    <Text style={[commonStyles.label, { color: colors.text }]}>
-                      Delete
-                    </Text>
-                  </Pressable>
+                      <Pressable
+                        onPress={async () => {
+                          try {
+                            await onDeleteTransaction(item.id);
+                          } catch (err: any) {
+                            Alert.alert("Delete failed", err?.message ?? "Unknown error");
+                          }
+                        }}
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 17,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          backgroundColor: colors.dangerSoft,
+                        }}
+                      >
+                        <Ionicons name="close" size={20} color={colors.danger} />
+                      </Pressable>
+                    </View>
+                  </View>
                 </View>
               );
             })

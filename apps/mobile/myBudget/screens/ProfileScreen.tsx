@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../components/Card";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
@@ -122,7 +123,7 @@ export function ProfileScreen({
                     gap: 10,
                   }}
                 >
-                  <View style={commonStyles.rowBetween}>
+                  <View style={[commonStyles.rowBetween, { alignItems: "flex-start" }]}>
                     <View style={{ flex: 1, gap: 3, paddingRight: 12 }}>
                       <View style={[commonStyles.row, { gap: 8, flexWrap: "wrap" }]}>
                         <Text style={[commonStyles.label, { color: colors.text }]}>
@@ -156,44 +157,45 @@ export function ProfileScreen({
                       </Text>
                     </View>
 
-                    <Text
-                      style={[
-                        commonStyles.money,
-                        {
-                          color: isExpense ? colors.danger : colors.success,
-                          fontSize: 18,
-                        },
-                      ]}
-                    >
-                      {isExpense ? "-" : "+"}
-                      {formatCents(rule.amount_cents)}
-                    </Text>
-                  </View>
-
-                  {rule.active ? (
-                    <Pressable
-                      onPress={async () => {
-                        try {
-                          await onRemoveRecurringRule(rule.id);
-                        } catch (err: any) {
-                          Alert.alert("Update failed", err?.message ?? "Unknown error");
-                        }
-                      }}
-                      style={[
-                        commonStyles.secondaryButton,
-                        {
-                          alignSelf: "flex-start",
-                          borderColor: colors.border,
-                          backgroundColor: colors.surfaceRaised,
-                          paddingHorizontal: 18,
-                        },
-                      ]}
-                    >
-                      <Text style={[commonStyles.label, { color: colors.text }]}>
-                        Stop
+                    <View style={{ alignItems: "flex-end", gap: 8 }}>
+                      <Text
+                        style={[
+                          commonStyles.money,
+                          {
+                            color: isExpense ? colors.danger : colors.success,
+                            fontSize: 18,
+                          },
+                        ]}
+                      >
+                        {isExpense ? "-" : "+"}
+                        {formatCents(rule.amount_cents)}
                       </Text>
-                    </Pressable>
-                  ) : null}
+
+                      {rule.active ? (
+                        <Pressable
+                          onPress={async () => {
+                            try {
+                              await onRemoveRecurringRule(rule.id);
+                            } catch (err: any) {
+                              Alert.alert("Update failed", err?.message ?? "Unknown error");
+                            }
+                          }}
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            backgroundColor: colors.warningSoft,
+                          }}
+                        >
+                          <Ionicons name="stop" size={17} color={colors.warning} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
                 </View>
               );
             })
