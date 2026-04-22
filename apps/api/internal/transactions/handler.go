@@ -11,17 +11,20 @@ import (
 	"mybudget-api/internal/categories"
 	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/recurring"
 )
 
 type Handler struct {
-	repo         *Repository
-	categoryRepo *categories.Repository
+	repo             *Repository
+	categoryRepo     *categories.Repository
+	recurringService *recurring.Service
 }
 
-func NewHandler(repo *Repository, categoryRepo *categories.Repository) *Handler {
+func NewHandler(repo *Repository, categoryRepo *categories.Repository, recurringService *recurring.Service) *Handler {
 	return &Handler{
-		repo:         repo,
-		categoryRepo: categoryRepo,
+		repo:             repo,
+		categoryRepo:     categoryRepo,
+		recurringService: recurringService,
 	}
 }
 
@@ -48,6 +51,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if startDate > endDate {
 		httpx.WriteError(w, http.StatusBadRequest, "start_date must be on or before end_date")
 		return
+	}
+
+	if h.recurringService != nil {
+		if _, err := h.recurringService.SyncDueRules(r.Context(), ""); err != nil {
+			httpx.WriteInternalError(w, "recurring sync before transactions failed", err, "failed to load transactions")
+			return
+		}
 	}
 
 	items, err := h.repo.ListByUserAndDateRange(r.Context(), userID, startDate, endDate)

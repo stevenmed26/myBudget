@@ -1,26 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../components/Card";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
-import { BudgetProfile } from "../types";
+import { BudgetProfile, Category, RecurringRule } from "../types";
+import { formatCents } from "../lib/format";
 
 export function ProfileScreen({
   colors,
   profile,
+  categories,
+  recurringRules,
   onSaveProfile,
+  onRemoveRecurringRule,
   onLogout,
 }: {
   colors: ThemeColors;
   profile: BudgetProfile | null;
+  categories: Category[];
+  recurringRules: RecurringRule[];
   onSaveProfile: (input: {
     incomeAmount: string;
     taxRate: string;
     trackingCadence: "weekly" | "monthly";
   }) => Promise<void>;
+  onRemoveRecurringRule: (ruleID: string) => Promise<void>;
   onLogout?: () => Promise<void>;
 }) {
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -87,6 +95,111 @@ export function ProfileScreen({
           >
             <Text style={commonStyles.buttonText}>Save Profile</Text>
           </Pressable>
+        </Card>
+
+        <Card colors={colors}>
+          <SectionHeader
+            colors={colors}
+            title="Recurring transactions"
+            subtitle="Repeating transactions currently attached to your budget"
+          />
+
+          {recurringRules.length === 0 ? (
+            <Text style={[commonStyles.body, { color: colors.textMuted }]}>
+              No recurring transactions yet.
+            </Text>
+          ) : (
+            recurringRules.map((rule) => {
+              const category = categories.find((item) => item.id === rule.category_id);
+              const isExpense = rule.rule_type === "expense";
+
+              return (
+                <View
+                  key={rule.id}
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                    paddingTop: 12,
+                    gap: 10,
+                  }}
+                >
+                  <View style={[commonStyles.rowBetween, { alignItems: "flex-start" }]}>
+                    <View style={{ flex: 1, gap: 3, paddingRight: 12 }}>
+                      <View style={[commonStyles.row, { gap: 8, flexWrap: "wrap" }]}>
+                        <Text style={[commonStyles.label, { color: colors.text }]}>
+                          {rule.name}
+                        </Text>
+
+                        <View
+                          style={{
+                            borderRadius: 999,
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            backgroundColor: rule.active ? colors.successSoft : colors.dangerSoft,
+                          }}
+                        >
+                          <Text
+                            style={[
+                              commonStyles.caption,
+                              {
+                                color: rule.active ? colors.success : colors.danger,
+                                textTransform: "capitalize",
+                              },
+                            ]}
+                          >
+                            {rule.active ? "Active" : "Inactive"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                        {category?.name || "Unknown category"} Â· {rule.frequency} Â· next {rule.next_run_date}
+                      </Text>
+                    </View>
+
+                    <View style={{ alignItems: "flex-end", gap: 8 }}>
+                      <Text
+                        style={[
+                          commonStyles.money,
+                          {
+                            color: isExpense ? colors.danger : colors.success,
+                            fontSize: 18,
+                          },
+                        ]}
+                      >
+                        {isExpense ? "-" : "+"}
+                        {formatCents(rule.amount_cents)}
+                      </Text>
+
+                      {rule.active ? (
+                        <Pressable
+                          onPress={async () => {
+                            try {
+                              await onRemoveRecurringRule(rule.id);
+                            } catch (err: any) {
+                              Alert.alert("Update failed", err?.message ?? "Unknown error");
+                            }
+                          }}
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            backgroundColor: colors.warningSoft,
+                          }}
+                        >
+                          <Ionicons name="stop" size={17} color={colors.warning} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
         </Card>
 
         {onLogout ? (

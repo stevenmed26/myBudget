@@ -20,6 +20,8 @@ import (
 	"mybudget-api/internal/onboarding"
 	"mybudget-api/internal/periodclose"
 	"mybudget-api/internal/profile"
+	"mybudget-api/internal/recommendations"
+	"mybudget-api/internal/recurring"
 	"mybudget-api/internal/transactions"
 )
 
@@ -42,7 +44,12 @@ func main() {
 	profileHandler := profile.NewHandler(profileRepo)
 
 	transactionRepo := transactions.NewRepository(database)
-	transactionHandler := transactions.NewHandler(transactionRepo, categoryRepo)
+
+	recurringRepo := recurring.NewRepository(database)
+	recurringService := recurring.NewService(recurringRepo, profileRepo)
+	recurringHandler := recurring.NewHandler(recurringRepo, recurringService, categoryRepo)
+
+	transactionHandler := transactions.NewHandler(transactionRepo, categoryRepo, recurringService)
 
 	dashboardRepo := dashboard.NewRepository(database)
 	dashboardHandler := dashboard.NewHandler(dashboardRepo, profileRepo)
@@ -52,14 +59,17 @@ func main() {
 
 	homeRepo := home.NewRepository(database)
 	homeService := home.NewService(homeRepo, profileRepo)
-	homeHandler := home.NewHandler(homeService)
+	homeHandler := home.NewHandler(homeService, recurringService)
 
 	periodCloseRepo := periodclose.NewRepository(database)
 	periodCloseService := periodclose.NewService(periodCloseRepo, homeService)
 	periodCloseHandler := periodclose.NewHandler(periodCloseService)
 
 	analyticsRepo := analytics.NewRepository(database)
-	analyticsHandler := analytics.NewHandler(analyticsRepo)
+	analyticsHandler := analytics.NewHandler(analyticsRepo, recurringService)
+
+	recommendationsRepo := recommendations.NewRepository(database)
+	recommendationsHandler := recommendations.NewHandler(recommendationsRepo, profileRepo, recurringService)
 
 	onboardingRepo := onboarding.NewRepository(database)
 	onboardingHandler := onboarding.NewHandler(onboardingRepo)
@@ -104,6 +114,11 @@ func main() {
 			r.Post("/transactions", transactionHandler.Create)
 			r.Delete("/transactions/{transactionID}", transactionHandler.Delete)
 
+			r.Get("/recurring-rules", recurringHandler.List)
+			r.Post("/recurring-rules", recurringHandler.Create)
+			r.Put("/recurring-rules/{ruleID}", recurringHandler.Update)
+			r.Delete("/recurring-rules/{ruleID}", recurringHandler.Delete)
+
 			r.Get("/dashboard/summary", dashboardHandler.Summary)
 
 			r.Get("/profile", profileHandler.Get)
@@ -116,6 +131,7 @@ func main() {
 			r.Post("/periods/close-current", periodCloseHandler.CloseCurrent)
 
 			r.Get("/analytics/summary", analyticsHandler.Summary)
+			r.Get("/recommendations/budget-suggestions", recommendationsHandler.BudgetSuggestions)
 		})
 	})
 

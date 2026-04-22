@@ -138,3 +138,19 @@ export type ResendVerificationResponse = {
 export type OnboardingStatus = {
   completed: boolean;
 };
+
+export type RecurringRule = {
+  id: string;
+  user_id: string;
+  category_id: string;
+  name: string;
+  amount_cents: number;
+  rule_type: "expense" | "income";
+  frequency: "weekly" | "biweekly" | "monthly" | "yearly";
+  start_date: string;
+  end_date?: string | null;
+  next_run_date: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
