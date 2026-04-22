@@ -7,17 +7,20 @@ import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
-import { CategoryBudget } from "../types";
+import { BudgetSuggestionsResponse, CategoryBudget } from "../types";
+import { formatCents } from "../lib/format";
 
 export function CategoriesScreen({
   colors,
   budgets,
+  budgetSuggestions,
   onAddCategory,
   onDeleteCategory,
   onSaveBudget,
 }: {
   colors: ThemeColors;
   budgets: CategoryBudget[];
+  budgetSuggestions: BudgetSuggestionsResponse | null;
   onAddCategory: (input: {
     name: string;
     color: string;
@@ -34,6 +37,9 @@ export function CategoriesScreen({
   const [newColor, setNewColor] = useState("#4F7CFF");
   const [newAmount, setNewAmount] = useState("0.00");
   const [newCadence, setNewCadence] = useState<"weekly" | "monthly" | "yearly">("weekly");
+  const suggestionByCategory = new Map(
+    (budgetSuggestions?.budget_suggestions ?? []).map((item) => [item.category_id, item])
+  );
 
   useEffect(() => {
     const d: Record<string, string> = {};
@@ -137,6 +143,53 @@ export function CategoriesScreen({
           </Card>
         ) : null}
 
+        {budgetSuggestions ? (
+          <Card colors={colors}>
+            <SectionHeader
+              colors={colors}
+              title="Smart suggestions"
+              subtitle={`Based on ${budgetSuggestions.summary.lookback_days} days of spending, recurring bills, and income fit`}
+            />
+
+            <View style={[commonStyles.rowBetween, { alignItems: "flex-start" }]}>
+              <View style={{ gap: 4, flex: 1, paddingRight: 12 }}>
+                <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                  Suggested total
+                </Text>
+                <Text style={[commonStyles.money, { color: colors.text, fontSize: 22 }]}>
+                  {formatCents(budgetSuggestions.summary.suggested_budget_total_cents)}
+                </Text>
+              </View>
+
+              <View style={{ gap: 4, alignItems: "flex-end" }}>
+                <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                  After income
+                </Text>
+                <Text
+                  style={[
+                    commonStyles.money,
+                    {
+                      color:
+                        budgetSuggestions.summary.suggested_remaining_cents >= 0
+                          ? colors.success
+                          : colors.danger,
+                      fontSize: 22,
+                    },
+                  ]}
+                >
+                  {formatCents(budgetSuggestions.summary.suggested_remaining_cents)}
+                </Text>
+              </View>
+            </View>
+
+            {budgetSuggestions.summary.needs_income_fit_review ? (
+              <Text style={[commonStyles.caption, { color: colors.warning }]}>
+                Suggestions were adjusted because planned category spending is tight against net income.
+              </Text>
+            ) : null}
+          </Card>
+        ) : null}
+
         <Card colors={colors}>
           <SectionHeader
             colors={colors}
@@ -145,16 +198,22 @@ export function CategoriesScreen({
           />
 
           <View style={{ gap: 14 }}>
-            {budgets.map((item) => (
-              <View
-                key={item.category_id}
-                style={{
-                  paddingTop: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border,
-                  gap: 12,
-                }}
-              >
+            {budgets.map((item) => {
+              const suggestion = suggestionByCategory.get(item.category_id);
+              const suggestedAmount = suggestion
+                ? (suggestion.suggested_budget_cents / 100).toFixed(2)
+                : null;
+
+              return (
+                <View
+                  key={item.category_id}
+                  style={{
+                    paddingTop: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                    gap: 12,
+                  }}
+                >
                 <View style={[commonStyles.rowBetween, { alignItems: "flex-start" }]}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, paddingRight: 12 }}>
                     <View
@@ -223,6 +282,77 @@ export function CategoriesScreen({
                   accentColor={item.category_color}
                 />
 
+                {suggestion ? (
+                  <View
+                    style={{
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 18,
+                      padding: 12,
+                      gap: 10,
+                      backgroundColor: colors.surfaceElevated,
+                    }}
+                  >
+                    <View style={[commonStyles.rowBetween, { alignItems: "flex-start" }]}>
+                      <View style={{ flex: 1, gap: 3, paddingRight: 12 }}>
+                        <Text style={[commonStyles.label, { color: colors.text }]}>
+                          Smart budget: {formatCents(suggestion.suggested_budget_cents)}
+                        </Text>
+                        <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                          {suggestion.reason} - {suggestion.confidence} confidence
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={[
+                          commonStyles.label,
+                          {
+                            color:
+                              suggestion.recommendation_direction === "increase"
+                                ? colors.warning
+                                : suggestion.recommendation_direction === "decrease"
+                                  ? colors.success
+                                  : colors.textMuted,
+                            textTransform: "capitalize",
+                          },
+                        ]}
+                      >
+                        {suggestion.recommendation_direction}
+                      </Text>
+                    </View>
+
+                    <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                      Avg {formatCents(suggestion.average_spent_cents)} - recurring{" "}
+                      {formatCents(suggestion.predictable_spend_cents)} - variable{" "}
+                      {formatCents(suggestion.variable_spent_cents)}
+                    </Text>
+
+                    {suggestedAmount && suggestion.recommendation_direction !== "keep" ? (
+                      <Pressable
+                        onPress={() => {
+                          setDrafts((prev) => ({ ...prev, [item.category_id]: suggestedAmount }));
+                          setCadences((prev) => ({
+                            ...prev,
+                            [item.category_id]: suggestion.tracking_cadence,
+                          }));
+                        }}
+                        style={[
+                          commonStyles.secondaryButton,
+                          {
+                            borderColor: colors.border,
+                            backgroundColor: colors.surfaceRaised,
+                            paddingVertical: 10,
+                          },
+                        ]}
+                      >
+                        <Text style={[commonStyles.label, { color: colors.text }]}>
+                          Use Suggestion
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+
                 <Pressable
                   onPress={async () => {
                     try {
@@ -241,7 +371,8 @@ export function CategoriesScreen({
                   <Text style={commonStyles.buttonText}>Save Budget</Text>
                 </Pressable>
               </View>
-            ))}
+              );
+            })}
           </View>
         </Card>
       </ScrollView>

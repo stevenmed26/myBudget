@@ -1,5 +1,6 @@
 import {
   AnalyticsSummary,
+  BudgetSuggestionsResponse,
   BudgetProfile,
   Category,
   CategoryBudget,
@@ -241,6 +242,13 @@ export async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
   });
   const data = await handle<{ category_budgets: CategoryBudget[] }>(res);
   return data.category_budgets;
+}
+
+export async function fetchBudgetSuggestions(): Promise<BudgetSuggestionsResponse> {
+  const res = await fetch(`${API_BASE_URL}/recommendations/budget-suggestions`, {
+    headers: buildHeaders(),
+  });
+  return handle<BudgetSuggestionsResponse>(res);
 }
 
 export async function upsertCategoryBudget(input: {

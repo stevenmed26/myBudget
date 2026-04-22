@@ -23,6 +23,46 @@ export type CategoryBudget = {
   created_at: string;
 };
 
+export type BudgetSuggestionSummary = {
+  tracking_cadence: "weekly" | "monthly";
+  lookback_days: number;
+  net_income_budget_cents: number;
+  current_budget_total_cents: number;
+  suggested_budget_total_cents: number;
+  suggested_remaining_cents: number;
+  suggested_over_income_cents: number;
+  needs_income_fit_review: boolean;
+};
+
+export type CategoryBudgetSuggestion = {
+  category_id: string;
+  category_name: string;
+  category_color: string;
+  tracking_cadence: "weekly" | "monthly";
+  current_budget_cents: number;
+  suggested_budget_cents: number;
+  average_spent_cents: number;
+  variable_spent_cents: number;
+  recurring_spent_cents: number;
+  predictable_spend_cents: number;
+  outlier_adjusted_cents: number;
+  recent_spent_cents: number;
+  lookback_days: number;
+  based_on_transactions: number;
+  confidence: "low" | "medium" | "high";
+  confidence_score: number;
+  reason: string;
+  reasons: string[];
+  recommendation_direction: "increase" | "decrease" | "keep";
+  change_cents: number;
+  change_percent: number;
+};
+
+export type BudgetSuggestionsResponse = {
+  summary: BudgetSuggestionSummary;
+  budget_suggestions: CategoryBudgetSuggestion[];
+};
+
 export type Transaction = {
   id: string;
   user_id: string;

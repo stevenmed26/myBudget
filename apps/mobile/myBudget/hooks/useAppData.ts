@@ -6,6 +6,7 @@ import {
   deleteCategory,
   deleteTransaction,
   fetchAnalyticsSummary,
+  fetchBudgetSuggestions,
   fetchCategories,
   fetchCategoryBudgets,
   fetchHomeSummary,
@@ -22,6 +23,7 @@ import { devError, devLog } from "../lib/devlog";
 import { todayISO } from "../lib/format";
 import {
   AnalyticsSummary,
+  BudgetSuggestionsResponse,
   BudgetProfile,
   Category,
   CategoryBudget,
@@ -37,6 +39,7 @@ export function useAppData(enabled: boolean) {
   const [homeSummary, setHomeSummary] = useState<HomeSummary | null>(null);
   const [profile, setProfile] = useState<BudgetProfile | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [budgetSuggestions, setBudgetSuggestions] = useState<BudgetSuggestionsResponse | null>(null);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
 
   const loadAll = useCallback(async () => {
@@ -44,13 +47,14 @@ export function useAppData(enabled: boolean) {
 
     const txs = await fetchTransactions();
 
-    const [cats, home, prof, budgetItems, analyticsSummary, recurringItems] =
+    const [cats, home, prof, budgetItems, analyticsSummary, suggestions, recurringItems] =
       await Promise.all([
         fetchCategories(),
         fetchHomeSummary(),
         fetchProfile(),
         fetchCategoryBudgets(),
         fetchAnalyticsSummary(),
+        fetchBudgetSuggestions(),
         fetchRecurringRules(),
       ]);
 
@@ -60,6 +64,7 @@ export function useAppData(enabled: boolean) {
     setProfile(prof);
     setBudgets(budgetItems);
     setAnalytics(analyticsSummary);
+    setBudgetSuggestions(suggestions);
     setRecurringRules(recurringItems);
   }, [enabled]);
 
@@ -297,6 +302,7 @@ export function useAppData(enabled: boolean) {
     homeSummary,
     profile,
     analytics,
+    budgetSuggestions,
     loadAll,
     addExpense,
     removeTransaction,

@@ -53,6 +53,7 @@ function AuthenticatedApp({
     homeSummary,
     profile,
     analytics,
+    budgetSuggestions,
     recurringRules,
     loadAll,
     addExpense,
@@ -142,6 +143,7 @@ function AuthenticatedApp({
           <CategoriesScreen
             colors={colors}
             budgets={budgets}
+            budgetSuggestions={budgetSuggestions}
             onAddCategory={addCategory}
             onDeleteCategory={removeCategory}
             onSaveBudget={saveBudget}
