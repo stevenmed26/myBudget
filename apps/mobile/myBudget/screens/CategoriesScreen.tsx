@@ -37,8 +37,11 @@ export function CategoriesScreen({
   const [newColor, setNewColor] = useState("#4F7CFF");
   const [newAmount, setNewAmount] = useState("0.00");
   const [newCadence, setNewCadence] = useState<"weekly" | "monthly" | "yearly">("weekly");
+  const actionableSuggestions = (budgetSuggestions?.budget_suggestions ?? []).filter(
+    (item) => item.confidence === "high" && item.recommendation_direction !== "keep"
+  );
   const suggestionByCategory = new Map(
-    (budgetSuggestions?.budget_suggestions ?? []).map((item) => [item.category_id, item])
+    actionableSuggestions.map((item) => [item.category_id, item])
   );
 
   useEffect(() => {
@@ -143,7 +146,7 @@ export function CategoriesScreen({
           </Card>
         ) : null}
 
-        {budgetSuggestions ? (
+        {budgetSuggestions && actionableSuggestions.length > 0 ? (
           <Card colors={colors}>
             <SectionHeader
               colors={colors}
