@@ -34,6 +34,7 @@ import {
   submitOnboarding,
   isUnauthorizedError,
   ApiError,
+  setApiSessionExpiredHandler,
 } from "./api";
 import { VerificationDelivery } from "./types";
 
@@ -196,6 +197,21 @@ export default function App() {
     devLog("api auth token updated", { isAuthenticated: !!authToken });
     setApiAuthToken(authToken);
   }, [authToken]);
+
+  useEffect(() => {
+    setApiSessionExpiredHandler(async () => {
+      devWarn("auth session expired; returning to login");
+      setAuthTokenState(null);
+      bootstrap.setAuthToken(null);
+      setApiAuthToken(null);
+      setOnboardingCompleted(null);
+      setPendingVerificationEmail("");
+      setVerificationDelivery("unknown");
+      setAuthMode("login");
+    });
+
+    return () => setApiSessionExpiredHandler(null);
+  }, [bootstrap.setAuthToken]);
 
   useEffect(() => {
     async function loadOnboardingStatus() {
