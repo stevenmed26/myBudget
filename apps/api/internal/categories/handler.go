@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgconn"
 
 	"mybudget-api/internal/auth"
@@ -89,4 +90,29 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, item)
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	categoryID := strings.TrimSpace(chi.URLParam(r, "categoryID"))
+	if categoryID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "categoryID is required")
+		return
+	}
+
+	if err := h.repo.SoftDelete(r.Context(), userID, categoryID); err != nil {
+		if errors.Is(err, ErrCategoryNotFound) {
+			httpx.WriteError(w, http.StatusNotFound, "category not found")
+			return
+		}
+		httpx.WriteInternalError(w, "category delete failed", err, "failed to delete category")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true})
 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   closeCurrentPeriod,
+  createCategory,
   createTransaction,
+  deleteCategory,
   deleteTransaction,
   fetchAnalyticsSummary,
   fetchCategories,
@@ -169,6 +171,48 @@ export function useAppData(enabled: boolean) {
     await loadAll();
   }
 
+  async function addCategory(input: {
+    name: string;
+    color: string;
+    amount: string;
+    cadence: "weekly" | "monthly" | "yearly";
+  }) {
+    const name = input.name.trim();
+    const color = input.color.trim();
+    const parsed = Number(input.amount || "0");
+
+    if (!name) {
+      throw new Error("Category name is required");
+    }
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      throw new Error("Enter a valid hex color");
+    }
+    if (Number.isNaN(parsed) || parsed < 0) {
+      throw new Error("Budget must be zero or greater");
+    }
+
+    const category = await createCategory({
+      name,
+      color,
+      icon: null,
+      counts_toward_budget: true,
+    });
+
+    await upsertCategoryBudget({
+      category_id: category.id,
+      amount_cents: Math.round(parsed * 100),
+      cadence: input.cadence,
+      effective_from: todayISO(),
+    });
+
+    await loadAll();
+  }
+
+  async function removeCategory(categoryID: string) {
+    await deleteCategory(categoryID);
+    await loadAll();
+  }
+
   async function saveProfile(input: {
     incomeAmount: string;
     taxRate: string;
@@ -228,6 +272,8 @@ export function useAppData(enabled: boolean) {
     loadAll,
     addExpense,
     removeTransaction,
+    addCategory,
+    removeCategory,
     saveBudget,
     saveProfile,
     closePeriod,

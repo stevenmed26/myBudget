@@ -109,6 +109,7 @@ func main() {
 
 			r.Get("/categories", categoryHandler.List)
 			r.Post("/categories", categoryHandler.Create)
+			r.Delete("/categories/{categoryID}", categoryHandler.Delete)
 
 			r.Get("/transactions", transactionHandler.List)
 			r.Post("/transactions", transactionHandler.Create)

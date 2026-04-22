@@ -56,6 +56,8 @@ function AuthenticatedApp({
     loadAll,
     addExpense,
     removeTransaction,
+    addCategory,
+    removeCategory,
     saveBudget,
     saveProfile,
     closePeriod,
@@ -139,6 +141,8 @@ function AuthenticatedApp({
           <CategoriesScreen
             colors={colors}
             budgets={budgets}
+            onAddCategory={addCategory}
+            onDeleteCategory={removeCategory}
             onSaveBudget={saveBudget}
           />
         )}

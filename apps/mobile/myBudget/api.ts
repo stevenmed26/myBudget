@@ -86,6 +86,28 @@ export async function fetchCategories(): Promise<Category[]> {
   return data.categories;
 }
 
+export async function createCategory(input: {
+  name: string;
+  color: string;
+  icon?: string | null;
+  counts_toward_budget: boolean;
+}) {
+  const res = await fetch(`${API_BASE_URL}/categories`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<Category>(res);
+}
+
+export async function deleteCategory(categoryID: string) {
+  const res = await fetch(`${API_BASE_URL}/categories/${categoryID}`, {
+    method: "DELETE",
+    headers: buildHeaders(),
+  });
+  return handle<{ deleted: boolean }>(res);
+}
+
 export async function fetchTransactions(): Promise<Transaction[]> {
   const res = await fetch(`${API_BASE_URL}/transactions`, {
     headers: buildHeaders(),
