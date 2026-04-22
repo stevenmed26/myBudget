@@ -18,7 +18,7 @@ import {
   updateRecurringRule,
   deleteRecurringRule,
 } from "../api";
-import { devError } from "../lib/devlog";
+import { devError, devLog } from "../lib/devlog";
 import { todayISO } from "../lib/format";
 import {
   AnalyticsSummary,
@@ -90,6 +90,11 @@ export function useAppData(enabled: boolean) {
         start_date: input.start_date?.trim() || todayISO(),
         end_date: null,
       });
+      devLog("recurring expense created", {
+        category_id: input.category_id,
+        frequency: input.frequency ?? "monthly",
+        start_date: input.start_date?.trim() || todayISO(),
+      });
     } else {
       await createTransaction({
         category_id: input.category_id,
@@ -135,8 +140,18 @@ export function useAppData(enabled: boolean) {
         ...payload,
         active: input.active ?? true,
       });
+      devLog("recurring rule updated", {
+        rule_id: input.ruleID,
+        category_id: input.category_id,
+        active: input.active ?? true,
+      });
     } else {
-      await createRecurringRule(payload);
+      const rule = await createRecurringRule(payload);
+      devLog("recurring rule created", {
+        rule_id: rule.id,
+        category_id: rule.category_id,
+        frequency: rule.frequency,
+      });
     }
 
     await loadAll();
@@ -144,6 +159,7 @@ export function useAppData(enabled: boolean) {
 
   async function removeRecurringRule(ruleID: string) {
     await deleteRecurringRule(ruleID);
+    devLog("recurring rule removed", { rule_id: ruleID });
     await loadAll();
   }
 
@@ -198,6 +214,10 @@ export function useAppData(enabled: boolean) {
       icon: null,
       counts_toward_budget: true,
     });
+    devLog("category created", {
+      category_id: category.id,
+      name: category.name,
+    });
 
     await upsertCategoryBudget({
       category_id: category.id,
@@ -211,6 +231,7 @@ export function useAppData(enabled: boolean) {
 
   async function removeCategory(categoryID: string) {
     await deleteCategory(categoryID);
+    devLog("category removed", { category_id: categoryID });
     await loadAll();
   }
 
@@ -245,12 +266,18 @@ export function useAppData(enabled: boolean) {
       location_code: profile.location_code,
       estimated_tax_rate_bps: Math.round(taxParsed * 100),
     });
+    devLog("profile updated", { tracking_cadence: input.trackingCadence });
 
     await loadAll();
   }
 
   async function closePeriod() {
     const result = await closeCurrentPeriod();
+    devLog("period close requested", {
+      period_start: result.period_start,
+      period_end: result.period_end,
+      already_closed: result.already_closed,
+    });
     await loadAll();
     return result;
   }

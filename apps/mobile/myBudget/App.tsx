@@ -17,6 +17,7 @@ import { VerifyEmailScreen } from "./screens/VerifyEmailScreen";
 import { useAppColors } from "./styles/theme";
 import { useAppData } from "./hooks/useAppData";
 import { useAppBootstrap } from "./hooks/useAppBootstrap";
+import { devLog, devWarn } from "./lib/devlog";
 import { formatCents } from "./lib/format";
 import {
   clearSession,
@@ -183,11 +184,13 @@ export default function App() {
 
   useEffect(() => {
     if (!bootstrap.isReady || authInitialized) return;
+    devLog("auth bootstrap initialized", { hasStoredToken: !!bootstrap.authToken });
     setAuthTokenState(bootstrap.authToken ?? null);
     setAuthInitialized(true);
   }, [bootstrap.isReady, bootstrap.authToken, authInitialized]);
 
   useEffect(() => {
+    devLog("api auth token updated", { isAuthenticated: !!authToken });
     setApiAuthToken(authToken);
   }, [authToken]);
 
@@ -203,6 +206,7 @@ export default function App() {
         setOnboardingCompleted(status.completed);
       } catch (err) {
         if (isUnauthorizedError(err)) {
+          devWarn("onboarding status unauthorized; clearing session");
           await clearSession();
           setAuthTokenState(null);
           bootstrap.setAuthToken(null);
@@ -212,6 +216,7 @@ export default function App() {
           return;
         }
 
+        devWarn("onboarding status failed", err);
         setOnboardingCompleted(null);
       }
     }
@@ -228,6 +233,7 @@ export default function App() {
     setAuthTokenState(accessToken);
     bootstrap.setAuthToken(accessToken);
     setApiAuthToken(accessToken);
+    devLog("auth session stored");
   }
 
   async function handleLogin(email: string, password: string) {
@@ -240,6 +246,7 @@ export default function App() {
         err.status === 403 &&
         err.message.toLowerCase().includes("not verified")
       ) {
+        devWarn("login blocked; email verification required");
         setPendingVerificationEmail(email.trim().toLowerCase());
         setVerificationDelivery("unknown");
         setAuthMode("verify");
@@ -251,6 +258,7 @@ export default function App() {
 
   async function handleSignUp(email: string, password: string) {
     const resp = await register({ email, password });
+    devLog("signup requires verification", { delivery: resp.delivery });
     setPendingVerificationEmail(resp.email);
     setVerificationDelivery(resp.delivery);
     setAuthMode("verify");
@@ -259,10 +267,12 @@ export default function App() {
   async function handleVerifyEmail(email: string, code: string) {
     const resp = await verifyEmail({ email, code });
     await handleAuthSuccess(resp.access_token, resp.refresh_token);
+    devLog("email verified");
   }
 
   async function handleResendVerification(email: string) {
     const resp = await resendVerification({ email });
+    devLog("verification code resent", { delivery: resp.delivery });
     setPendingVerificationEmail(resp.email);
     setVerificationDelivery(resp.delivery);
     return resp.delivery;
@@ -270,6 +280,7 @@ export default function App() {
 
   async function handleLogout() {
     await clearSession();
+    devLog("auth session cleared");
     setAuthTokenState(null);
     bootstrap.setAuthToken(null);
     setApiAuthToken(null);
@@ -294,6 +305,10 @@ export default function App() {
     }[];
   }) {
     await submitOnboarding(input);
+    devLog("onboarding completed", {
+      tracking_cadence: input.tracking_cadence,
+      category_count: input.category_budgets.length,
+    });
     setOnboardingCompleted(true);
   }
 

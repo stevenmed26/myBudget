@@ -13,6 +13,7 @@ import {
   RegisterResponse,
   ResendVerificationResponse,
 } from "./types";
+import { devWarn } from "./lib/devlog";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080/api/v1";
@@ -67,6 +68,12 @@ async function handle<T>(res: Response): Promise<T> {
       typeof (body as { error?: unknown }).error === "string"
         ? (body as { error: string }).error
         : rawText || `request failed: ${res.status}`;
+
+    devWarn("api request failed", {
+      status: res.status,
+      url: res.url,
+      message,
+    });
 
     throw new ApiError(message, res.status, body);
   }
