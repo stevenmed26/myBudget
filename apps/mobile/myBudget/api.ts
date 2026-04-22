@@ -220,6 +220,7 @@ export async function updateProfile(input: {
   income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
   location_code: string;
   estimated_tax_rate_bps: number;
+  smart_budgeting_enabled: boolean;
 }) {
   const res = await fetch(`${API_BASE_URL}/profile`, {
     method: "PUT",
@@ -347,6 +348,7 @@ export async function submitOnboarding(input: {
   income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
   location_code: string;
   estimated_tax_rate_bps: number;
+  smart_budgeting_enabled: boolean;
   category_budgets: {
     category_name: string;
     amount_cents: number;

@@ -88,9 +88,10 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 		INSERT INTO budget_profiles (
 			user_id, tracking_cadence, week_starts_on, monthly_anchor_day,
 			currency_code, locale, timezone,
-			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps
+			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
+			smart_budgeting_enabled
 		)
-		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0)
+		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0, TRUE)
 		ON CONFLICT (user_id) DO NOTHING
 	`
 	if _, err := tx.Exec(ctx, createProfile, u.ID); err != nil {
@@ -102,9 +103,9 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 			user_id, tracking_cadence, week_starts_on, monthly_anchor_day,
 			currency_code, locale, timezone,
 			income_amount_cents, income_cadence, location_code, estimated_tax_rate_bps,
-			effective_from
+			smart_budgeting_enabled, effective_from
 		)
-		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0, $2::date)
+		VALUES ($1, 'weekly', 1, 1, 'USD', 'en-US', 'America/Chicago', 0, 'monthly', 'US-TX', 0, TRUE, $2::date)
 	`
 	if _, err := tx.Exec(ctx, createProfileVersion, u.ID, effectiveFrom); err != nil {
 		return nil, err

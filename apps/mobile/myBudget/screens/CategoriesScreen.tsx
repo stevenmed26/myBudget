@@ -13,6 +13,7 @@ import { formatCents } from "../lib/format";
 export function CategoriesScreen({
   colors,
   budgets,
+  smartBudgetingEnabled,
   budgetSuggestions,
   onAddCategory,
   onDeleteCategory,
@@ -20,6 +21,7 @@ export function CategoriesScreen({
 }: {
   colors: ThemeColors;
   budgets: CategoryBudget[];
+  smartBudgetingEnabled: boolean;
   budgetSuggestions: BudgetSuggestionsResponse | null;
   onAddCategory: (input: {
     name: string;
@@ -37,9 +39,11 @@ export function CategoriesScreen({
   const [newColor, setNewColor] = useState("#4F7CFF");
   const [newAmount, setNewAmount] = useState("0.00");
   const [newCadence, setNewCadence] = useState<"weekly" | "monthly" | "yearly">("weekly");
-  const actionableSuggestions = (budgetSuggestions?.budget_suggestions ?? []).filter(
-    (item) => item.confidence === "high" && item.recommendation_direction !== "keep"
-  );
+  const actionableSuggestions = smartBudgetingEnabled
+    ? (budgetSuggestions?.budget_suggestions ?? []).filter(
+        (item) => item.confidence === "high" && item.recommendation_direction !== "keep"
+      )
+    : [];
   const suggestionByCategory = new Map(
     actionableSuggestions.map((item) => [item.category_id, item])
   );
@@ -146,7 +150,7 @@ export function CategoriesScreen({
           </Card>
         ) : null}
 
-        {budgetSuggestions && actionableSuggestions.length > 0 ? (
+        {smartBudgetingEnabled && budgetSuggestions && actionableSuggestions.length > 0 ? (
           <Card colors={colors}>
             <SectionHeader
               colors={colors}

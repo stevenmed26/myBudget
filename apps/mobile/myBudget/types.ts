@@ -26,6 +26,7 @@ export type CategoryBudget = {
 export type BudgetSuggestionSummary = {
   tracking_cadence: "weekly" | "monthly";
   lookback_days: number;
+  smart_budgeting_enabled: boolean;
   net_income_budget_cents: number;
   current_budget_total_cents: number;
   suggested_budget_total_cents: number;
@@ -89,6 +90,7 @@ export type BudgetProfile = {
   income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
   location_code: string;
   estimated_tax_rate_bps: number;
+  smart_budgeting_enabled: boolean;
   created_at: string;
   updated_at: string;
 };

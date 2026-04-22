@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Alert, SafeAreaView, ScrollView, View, Text } from "react-native";
+import { Alert, Pressable, SafeAreaView, ScrollView, View, Text } from "react-native";
 import { Card } from "../components/Card";
 import { ActionButton } from "../components/ActionButton";
 import { LabeledInput } from "../components/LabeledInput";
@@ -16,6 +16,7 @@ type Draft = {
     incomeCadence: "weekly" | "biweekly" | "monthly" | "yearly";
     locationCode: string;
     estimatedTaxRate: string;
+    smartBudgetingEnabled: boolean;
     categoryBudgets: {
         categoryName: string;
         amount: string;
@@ -46,6 +47,7 @@ export function OnboardingScreen({
         income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
         location_code: string;
         estimated_tax_rate_bps: number;
+        smart_budgeting_enabled: boolean;
         category_budgets: {
         category_name: string;
         amount_cents: number;
@@ -63,6 +65,7 @@ export function OnboardingScreen({
         incomeCadence: "monthly",
         locationCode: "US-TX",
         estimatedTaxRate: "",
+        smartBudgetingEnabled: true,
         categoryBudgets: [
             { categoryName: "Food", amount: "150.00", cadence: "weekly" },
             { categoryName: "Housing", amount: "300.00", cadence: "weekly" },
@@ -113,6 +116,7 @@ export function OnboardingScreen({
                 income_cadence: draft.incomeCadence,
                 location_code: draft.locationCode.trim() || "US-TX",
                 estimated_tax_rate_bps: Math.round(taxParsed * 100),
+                smart_budgeting_enabled: draft.smartBudgetingEnabled,
                 category_budgets: categoryBudgets,
             });
         } catch (err: any) {
@@ -242,6 +246,55 @@ export function OnboardingScreen({
                             value={draft.estimatedTaxRate}
                             onChangeText={(value) => setDraft((prev) => ({...prev, estimatedTaxRate: value}))}
                         />
+
+                        <Pressable
+                            onPress={() =>
+                                setDraft((prev) => ({
+                                    ...prev,
+                                    smartBudgetingEnabled: !prev.smartBudgetingEnabled,
+                                }))
+                            }
+                            style={[
+                                commonStyles.rowBetween,
+                                {
+                                    borderWidth: 1,
+                                    borderColor: draft.smartBudgetingEnabled ? colors.accent : colors.border,
+                                    borderRadius: 18,
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 12,
+                                    backgroundColor: draft.smartBudgetingEnabled ? colors.accentSoft : colors.surfaceRaised,
+                                },
+                            ]}
+                        >
+                            <View style={{ flex: 1, paddingRight: 12 }}>
+                                <Text style={[commonStyles.label, { color: colors.text }]}>
+                                    Smart budgeting
+                                </Text>
+                                <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                                    Show high-confidence budget recommendations
+                                </Text>
+                            </View>
+
+                            <View
+                                style={{
+                                    width: 42,
+                                    height: 24,
+                                    borderRadius: 999,
+                                    padding: 3,
+                                    backgroundColor: draft.smartBudgetingEnabled ? colors.accent : colors.border,
+                                    alignItems: draft.smartBudgetingEnabled ? "flex-end" : "flex-start",
+                                }}
+                            >
+                                <View
+                                    style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 999,
+                                        backgroundColor: colors.white,
+                                    }}
+                                />
+                            </View>
+                        </Pressable>
                     </Card>
                 ) : null}
 
@@ -306,6 +359,9 @@ export function OnboardingScreen({
                         </Text>
                         <Text style={[commonStyles.body, { color: colors.text }]}>
                         Tax rate: {draft.estimatedTaxRate || "0.00"}%
+                        </Text>
+                        <Text style={[commonStyles.body, { color: colors.text }]}>
+                        Smart budgeting: {draft.smartBudgetingEnabled ? "On" : "Off"}
                         </Text>
 
                         <View style={{ gap: 6 }}>

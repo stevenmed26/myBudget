@@ -49,6 +49,17 @@ func (h *Handler) BudgetSuggestions(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "budget profile not found")
 		return
 	}
+	if !currentProfile.SmartBudgetingEnabled {
+		httpx.WriteJSON(w, http.StatusOK, BudgetSuggestionsResponse{
+			Summary: BudgetSuggestionSummary{
+				TrackingCadence:       currentProfile.TrackingCadence,
+				LookbackDays:          90,
+				SmartBudgetingEnabled: false,
+			},
+			BudgetSuggestions: []CategoryBudgetSuggestion{},
+		})
+		return
+	}
 
 	now := time.Now()
 	if currentProfile.Timezone != "" {
@@ -168,6 +179,7 @@ func (h *Handler) BudgetSuggestions(w http.ResponseWriter, r *http.Request) {
 	summary := BudgetSuggestionSummary{
 		TrackingCadence:           currentProfile.TrackingCadence,
 		LookbackDays:              lookbackDays,
+		SmartBudgetingEnabled:     true,
 		NetIncomeBudgetCents:      netIncomeBudget,
 		CurrentBudgetTotalCents:   currentTotal,
 		SuggestedBudgetTotalCents: suggestedTotal,

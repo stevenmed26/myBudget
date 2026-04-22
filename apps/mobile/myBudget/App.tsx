@@ -143,6 +143,7 @@ function AuthenticatedApp({
           <CategoriesScreen
             colors={colors}
             budgets={budgets}
+            smartBudgetingEnabled={profile?.smart_budgeting_enabled ?? true}
             budgetSuggestions={budgetSuggestions}
             onAddCategory={addCategory}
             onDeleteCategory={removeCategory}
@@ -300,6 +301,7 @@ export default function App() {
     income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
     location_code: string;
     estimated_tax_rate_bps: number;
+    smart_budgeting_enabled: boolean;
     category_budgets: {
       category_name: string;
       amount_cents: number;
@@ -309,6 +311,7 @@ export default function App() {
     await submitOnboarding(input);
     devLog("onboarding completed", {
       tracking_cadence: input.tracking_cadence,
+      smart_budgeting_enabled: input.smart_budgeting_enabled,
       category_count: input.category_budgets.length,
     });
     setOnboardingCompleted(true);

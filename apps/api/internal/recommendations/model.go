@@ -27,6 +27,7 @@ type CategoryBudgetSuggestion struct {
 type BudgetSuggestionSummary struct {
 	TrackingCadence           string `json:"tracking_cadence"`
 	LookbackDays              int    `json:"lookback_days"`
+	SmartBudgetingEnabled     bool   `json:"smart_budgeting_enabled"`
 	NetIncomeBudgetCents      int64  `json:"net_income_budget_cents"`
 	CurrentBudgetTotalCents   int64  `json:"current_budget_total_cents"`
 	SuggestedBudgetTotalCents int64  `json:"suggested_budget_total_cents"`

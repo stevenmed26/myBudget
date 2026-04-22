@@ -27,6 +27,7 @@ export function ProfileScreen({
     incomeAmount: string;
     taxRate: string;
     trackingCadence: "weekly" | "monthly";
+    smartBudgetingEnabled: boolean;
   }) => Promise<void>;
   onRemoveRecurringRule: (ruleID: string) => Promise<void>;
   onLogout?: () => Promise<void>;
@@ -34,12 +35,14 @@ export function ProfileScreen({
   const [incomeAmount, setIncomeAmount] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [trackingCadence, setTrackingCadence] = useState<"weekly" | "monthly">("weekly");
+  const [smartBudgetingEnabled, setSmartBudgetingEnabled] = useState(true);
 
   useEffect(() => {
     if (!profile) return;
     setIncomeAmount((profile.income_amount_cents / 100).toFixed(2));
     setTaxRate((profile.estimated_tax_rate_bps / 100).toFixed(2));
     setTrackingCadence(profile.tracking_cadence);
+    setSmartBudgetingEnabled(profile.smart_budgeting_enabled);
   }, [profile]);
 
   return (
@@ -83,9 +86,58 @@ export function ProfileScreen({
           />
 
           <Pressable
+            onPress={() => setSmartBudgetingEnabled((value) => !value)}
+            style={[
+              commonStyles.rowBetween,
+              {
+                borderWidth: 1,
+                borderColor: smartBudgetingEnabled ? colors.accent : colors.border,
+                borderRadius: 18,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                backgroundColor: smartBudgetingEnabled ? colors.accentSoft : colors.surfaceRaised,
+              },
+            ]}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={[commonStyles.label, { color: colors.text }]}>
+                Smart budgeting
+              </Text>
+              <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                Show high-confidence budget recommendations
+              </Text>
+            </View>
+
+            <View
+              style={{
+                width: 42,
+                height: 24,
+                borderRadius: 999,
+                padding: 3,
+                backgroundColor: smartBudgetingEnabled ? colors.accent : colors.border,
+                alignItems: smartBudgetingEnabled ? "flex-end" : "flex-start",
+              }}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 999,
+                  backgroundColor: colors.white,
+                }}
+              />
+            </View>
+          </Pressable>
+
+          <Pressable
             onPress={async () => {
               try {
-                await onSaveProfile({ incomeAmount, taxRate, trackingCadence });
+                await onSaveProfile({
+                  incomeAmount,
+                  taxRate,
+                  trackingCadence,
+                  smartBudgetingEnabled,
+                });
                 Alert.alert("Saved", "Budget profile updated.");
               } catch (err: any) {
                 Alert.alert("Save failed", err?.message ?? "Unknown error");

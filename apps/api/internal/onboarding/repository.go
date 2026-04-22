@@ -47,6 +47,7 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 			income_cadence = $6,
 			location_code = $7,
 			estimated_tax_rate_bps = $8,
+			smart_budgeting_enabled = $9,
 			updated_at = NOW(),
 			onboarding_completed_at = NOW()
 		WHERE user_id = $1
@@ -60,6 +61,7 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 		req.IncomeCadence,
 		req.LocationCode,
 		req.EstimatedTaxRateBps,
+		req.SmartBudgetingEnabled,
 	); err != nil {
 		return err
 	}
@@ -87,6 +89,7 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 			income_cadence,
 			location_code,
 			estimated_tax_rate_bps,
+			smart_budgeting_enabled,
 			effective_from
 		)
 		SELECT
@@ -101,7 +104,8 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 			$6,
 			$7,
 			$8,
-			$9::date
+			$9,
+			$10::date
 		FROM budget_profiles
 		WHERE user_id = $1
 	`
@@ -114,6 +118,7 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 		req.IncomeCadence,
 		req.LocationCode,
 		req.EstimatedTaxRateBps,
+		req.SmartBudgetingEnabled,
 		effectiveFrom,
 	); err != nil {
 		return err

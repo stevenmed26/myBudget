@@ -244,6 +244,7 @@ export function useAppData(enabled: boolean) {
     incomeAmount: string;
     taxRate: string;
     trackingCadence: "weekly" | "monthly";
+    smartBudgetingEnabled: boolean;
   }) {
     if (!profile) {
       throw new Error("Profile not loaded");
@@ -270,8 +271,12 @@ export function useAppData(enabled: boolean) {
       income_cadence: profile.income_cadence,
       location_code: profile.location_code,
       estimated_tax_rate_bps: Math.round(taxParsed * 100),
+      smart_budgeting_enabled: input.smartBudgetingEnabled,
     });
-    devLog("profile updated", { tracking_cadence: input.trackingCadence });
+    devLog("profile updated", {
+      tracking_cadence: input.trackingCadence,
+      smart_budgeting_enabled: input.smartBudgetingEnabled,
+    });
 
     await loadAll();
   }
