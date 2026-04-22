@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
+import { ToggleRow } from "../components/ToggleRow";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { BudgetProfile, Category, RecurringRule } from "../types";
@@ -27,6 +28,7 @@ export function ProfileScreen({
     incomeAmount: string;
     taxRate: string;
     trackingCadence: "weekly" | "monthly";
+    smartBudgetingEnabled: boolean;
   }) => Promise<void>;
   onRemoveRecurringRule: (ruleID: string) => Promise<void>;
   onLogout?: () => Promise<void>;
@@ -34,12 +36,14 @@ export function ProfileScreen({
   const [incomeAmount, setIncomeAmount] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [trackingCadence, setTrackingCadence] = useState<"weekly" | "monthly">("weekly");
+  const [smartBudgetingEnabled, setSmartBudgetingEnabled] = useState(true);
 
   useEffect(() => {
     if (!profile) return;
     setIncomeAmount((profile.income_amount_cents / 100).toFixed(2));
     setTaxRate((profile.estimated_tax_rate_bps / 100).toFixed(2));
     setTrackingCadence(profile.tracking_cadence);
+    setSmartBudgetingEnabled(profile.smart_budgeting_enabled);
   }, [profile]);
 
   return (
@@ -82,10 +86,23 @@ export function ProfileScreen({
             colors={colors}
           />
 
+          <ToggleRow
+            colors={colors}
+            title="Smart budgeting"
+            subtitle="Show high-confidence budget recommendations"
+            enabled={smartBudgetingEnabled}
+            onToggle={() => setSmartBudgetingEnabled((value) => !value)}
+          />
+
           <Pressable
             onPress={async () => {
               try {
-                await onSaveProfile({ incomeAmount, taxRate, trackingCadence });
+                await onSaveProfile({
+                  incomeAmount,
+                  taxRate,
+                  trackingCadence,
+                  smartBudgetingEnabled,
+                });
                 Alert.alert("Saved", "Budget profile updated.");
               } catch (err: any) {
                 Alert.alert("Save failed", err?.message ?? "Unknown error");

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   closeCurrentPeriod,
+  createCategory,
   createTransaction,
+  deleteCategory,
   deleteTransaction,
   fetchAnalyticsSummary,
+  fetchBudgetSuggestions,
   fetchCategories,
   fetchCategoryBudgets,
   fetchHomeSummary,
@@ -16,9 +19,11 @@ import {
   updateRecurringRule,
   deleteRecurringRule,
 } from "../api";
+import { devError, devLog, devWarn } from "../lib/devlog";
 import { todayISO } from "../lib/format";
 import {
   AnalyticsSummary,
+  BudgetSuggestionsResponse,
   BudgetProfile,
   Category,
   CategoryBudget,
@@ -34,20 +39,28 @@ export function useAppData(enabled: boolean) {
   const [homeSummary, setHomeSummary] = useState<HomeSummary | null>(null);
   const [profile, setProfile] = useState<BudgetProfile | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [budgetSuggestions, setBudgetSuggestions] = useState<BudgetSuggestionsResponse | null>(null);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
 
   const loadAll = useCallback(async () => {
     if (!enabled) return;
 
-    const txs = await fetchTransactions();
+    const [txs, prof] = await Promise.all([fetchTransactions(), fetchProfile()]);
 
-    const [cats, home, prof, budgetItems, analyticsSummary, recurringItems] =
+    const suggestionsPromise = prof.smart_budgeting_enabled
+      ? fetchBudgetSuggestions().catch((err) => {
+          devWarn("budget suggestions load failed", err);
+          return null;
+        })
+      : Promise.resolve(null);
+
+    const [cats, home, budgetItems, analyticsSummary, suggestions, recurringItems] =
       await Promise.all([
         fetchCategories(),
         fetchHomeSummary(),
-        fetchProfile(),
         fetchCategoryBudgets(),
         fetchAnalyticsSummary(),
+        suggestionsPromise,
         fetchRecurringRules(),
       ]);
 
@@ -57,6 +70,7 @@ export function useAppData(enabled: boolean) {
     setProfile(prof);
     setBudgets(budgetItems);
     setAnalytics(analyticsSummary);
+    setBudgetSuggestions(suggestions);
     setRecurringRules(recurringItems);
   }, [enabled]);
 
@@ -86,6 +100,11 @@ export function useAppData(enabled: boolean) {
         frequency: input.frequency ?? "monthly",
         start_date: input.start_date?.trim() || todayISO(),
         end_date: null,
+      });
+      devLog("recurring expense created", {
+        category_id: input.category_id,
+        frequency: input.frequency ?? "monthly",
+        start_date: input.start_date?.trim() || todayISO(),
       });
     } else {
       await createTransaction({
@@ -132,8 +151,18 @@ export function useAppData(enabled: boolean) {
         ...payload,
         active: input.active ?? true,
       });
+      devLog("recurring rule updated", {
+        rule_id: input.ruleID,
+        category_id: input.category_id,
+        active: input.active ?? true,
+      });
     } else {
-      await createRecurringRule(payload);
+      const rule = await createRecurringRule(payload);
+      devLog("recurring rule created", {
+        rule_id: rule.id,
+        category_id: rule.category_id,
+        frequency: rule.frequency,
+      });
     }
 
     await loadAll();
@@ -141,6 +170,7 @@ export function useAppData(enabled: boolean) {
 
   async function removeRecurringRule(ruleID: string) {
     await deleteRecurringRule(ruleID);
+    devLog("recurring rule removed", { rule_id: ruleID });
     await loadAll();
   }
 
@@ -169,10 +199,58 @@ export function useAppData(enabled: boolean) {
     await loadAll();
   }
 
+  async function addCategory(input: {
+    name: string;
+    color: string;
+    amount: string;
+    cadence: "weekly" | "monthly" | "yearly";
+  }) {
+    const name = input.name.trim();
+    const color = input.color.trim();
+    const parsed = Number(input.amount || "0");
+
+    if (!name) {
+      throw new Error("Category name is required");
+    }
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      throw new Error("Enter a valid hex color");
+    }
+    if (Number.isNaN(parsed) || parsed < 0) {
+      throw new Error("Budget must be zero or greater");
+    }
+
+    const category = await createCategory({
+      name,
+      color,
+      icon: null,
+      counts_toward_budget: true,
+    });
+    devLog("category created", {
+      category_id: category.id,
+      name: category.name,
+    });
+
+    await upsertCategoryBudget({
+      category_id: category.id,
+      amount_cents: Math.round(parsed * 100),
+      cadence: input.cadence,
+      effective_from: todayISO(),
+    });
+
+    await loadAll();
+  }
+
+  async function removeCategory(categoryID: string) {
+    await deleteCategory(categoryID);
+    devLog("category removed", { category_id: categoryID });
+    await loadAll();
+  }
+
   async function saveProfile(input: {
     incomeAmount: string;
     taxRate: string;
     trackingCadence: "weekly" | "monthly";
+    smartBudgetingEnabled: boolean;
   }) {
     if (!profile) {
       throw new Error("Profile not loaded");
@@ -199,6 +277,11 @@ export function useAppData(enabled: boolean) {
       income_cadence: profile.income_cadence,
       location_code: profile.location_code,
       estimated_tax_rate_bps: Math.round(taxParsed * 100),
+      smart_budgeting_enabled: input.smartBudgetingEnabled,
+    });
+    devLog("profile updated", {
+      tracking_cadence: input.trackingCadence,
+      smart_budgeting_enabled: input.smartBudgetingEnabled,
     });
 
     await loadAll();
@@ -206,6 +289,11 @@ export function useAppData(enabled: boolean) {
 
   async function closePeriod() {
     const result = await closeCurrentPeriod();
+    devLog("period close requested", {
+      period_start: result.period_start,
+      period_end: result.period_end,
+      already_closed: result.already_closed,
+    });
     await loadAll();
     return result;
   }
@@ -214,7 +302,7 @@ export function useAppData(enabled: boolean) {
     if (!enabled) return;
 
     loadAll().catch((err) => {
-      console.error("useAppData loadAll failed", err);
+      devError("useAppData loadAll failed", err);
     });
   }, [enabled, loadAll]);
 
@@ -225,9 +313,12 @@ export function useAppData(enabled: boolean) {
     homeSummary,
     profile,
     analytics,
+    budgetSuggestions,
     loadAll,
     addExpense,
     removeTransaction,
+    addCategory,
+    removeCategory,
     saveBudget,
     saveProfile,
     closePeriod,

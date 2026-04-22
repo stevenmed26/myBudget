@@ -1,5 +1,6 @@
 import {
   AnalyticsSummary,
+  BudgetSuggestionsResponse,
   BudgetProfile,
   Category,
   CategoryBudget,
@@ -13,6 +14,7 @@ import {
   RegisterResponse,
   ResendVerificationResponse,
 } from "./types";
+import { devWarn } from "./lib/devlog";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080/api/v1";
@@ -68,6 +70,12 @@ async function handle<T>(res: Response): Promise<T> {
         ? (body as { error: string }).error
         : rawText || `request failed: ${res.status}`;
 
+    devWarn("api request failed", {
+      status: res.status,
+      url: res.url,
+      message,
+    });
+
     throw new ApiError(message, res.status, body);
   }
 
@@ -84,6 +92,28 @@ export async function fetchCategories(): Promise<Category[]> {
   });
   const data = await handle<{ categories: Category[] }>(res);
   return data.categories;
+}
+
+export async function createCategory(input: {
+  name: string;
+  color: string;
+  icon?: string | null;
+  counts_toward_budget: boolean;
+}) {
+  const res = await fetch(`${API_BASE_URL}/categories`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handle<Category>(res);
+}
+
+export async function deleteCategory(categoryID: string) {
+  const res = await fetch(`${API_BASE_URL}/categories/${categoryID}`, {
+    method: "DELETE",
+    headers: buildHeaders(),
+  });
+  return handle<{ deleted: boolean }>(res);
 }
 
 export async function fetchTransactions(): Promise<Transaction[]> {
@@ -190,6 +220,7 @@ export async function updateProfile(input: {
   income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
   location_code: string;
   estimated_tax_rate_bps: number;
+  smart_budgeting_enabled: boolean;
 }) {
   const res = await fetch(`${API_BASE_URL}/profile`, {
     method: "PUT",
@@ -212,6 +243,13 @@ export async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
   });
   const data = await handle<{ category_budgets: CategoryBudget[] }>(res);
   return data.category_budgets;
+}
+
+export async function fetchBudgetSuggestions(): Promise<BudgetSuggestionsResponse> {
+  const res = await fetch(`${API_BASE_URL}/recommendations/budget-suggestions`, {
+    headers: buildHeaders(),
+  });
+  return handle<BudgetSuggestionsResponse>(res);
 }
 
 export async function upsertCategoryBudget(input: {
@@ -310,6 +348,7 @@ export async function submitOnboarding(input: {
   income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
   location_code: string;
   estimated_tax_rate_bps: number;
+  smart_budgeting_enabled: boolean;
   category_budgets: {
     category_name: string;
     amount_cents: number;

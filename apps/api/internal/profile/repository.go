@@ -30,6 +30,7 @@ func (r *Repository) GetCurrentByUser(ctx context.Context, userID string) (*Budg
 			income_cadence,
 			location_code,
 			estimated_tax_rate_bps,
+			smart_budgeting_enabled,
 			created_at,
 			created_at AS updated_at
 		FROM budget_profile_versions
@@ -52,6 +53,7 @@ func (r *Repository) GetCurrentByUser(ctx context.Context, userID string) (*Budg
 		&p.IncomeCadence,
 		&p.LocationCode,
 		&p.EstimatedTaxRateBps,
+		&p.SmartBudgetingEnabled,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -79,6 +81,7 @@ func (r *Repository) GetVersionForDate(ctx context.Context, userID string, onDat
 			income_cadence,
 			location_code,
 			estimated_tax_rate_bps,
+			smart_budgeting_enabled,
 			created_at,
 			created_at AS updated_at
 		FROM budget_profile_versions
@@ -102,6 +105,7 @@ func (r *Repository) GetVersionForDate(ctx context.Context, userID string, onDat
 		&p.IncomeCadence,
 		&p.LocationCode,
 		&p.EstimatedTaxRateBps,
+		&p.SmartBudgetingEnabled,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -145,9 +149,10 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 			income_cadence,
 			location_code,
 			estimated_tax_rate_bps,
+			smart_budgeting_enabled,
 			effective_from
 		)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::date)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::date)
 		RETURNING
 			user_id,
 			tracking_cadence,
@@ -160,6 +165,7 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 			income_cadence,
 			location_code,
 			estimated_tax_rate_bps,
+			smart_budgeting_enabled,
 			created_at,
 			created_at AS updated_at
 	`
@@ -177,6 +183,7 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 		req.IncomeCadence,
 		req.LocationCode,
 		req.EstimatedTaxRateBps,
+		req.SmartBudgetingEnabled,
 		effectiveFrom,
 	).Scan(
 		&p.UserID,
@@ -190,6 +197,7 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 		&p.IncomeCadence,
 		&p.LocationCode,
 		&p.EstimatedTaxRateBps,
+		&p.SmartBudgetingEnabled,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)

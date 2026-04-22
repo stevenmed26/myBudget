@@ -5,6 +5,7 @@ import { ActionButton } from "../components/ActionButton";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
+import { ToggleRow } from "../components/ToggleRow";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 
@@ -16,6 +17,7 @@ type Draft = {
     incomeCadence: "weekly" | "biweekly" | "monthly" | "yearly";
     locationCode: string;
     estimatedTaxRate: string;
+    smartBudgetingEnabled: boolean;
     categoryBudgets: {
         categoryName: string;
         amount: string;
@@ -46,6 +48,7 @@ export function OnboardingScreen({
         income_cadence: "weekly" | "biweekly" | "monthly" | "yearly";
         location_code: string;
         estimated_tax_rate_bps: number;
+        smart_budgeting_enabled: boolean;
         category_budgets: {
         category_name: string;
         amount_cents: number;
@@ -63,6 +66,7 @@ export function OnboardingScreen({
         incomeCadence: "monthly",
         locationCode: "US-TX",
         estimatedTaxRate: "",
+        smartBudgetingEnabled: true,
         categoryBudgets: [
             { categoryName: "Food", amount: "150.00", cadence: "weekly" },
             { categoryName: "Housing", amount: "300.00", cadence: "weekly" },
@@ -113,6 +117,7 @@ export function OnboardingScreen({
                 income_cadence: draft.incomeCadence,
                 location_code: draft.locationCode.trim() || "US-TX",
                 estimated_tax_rate_bps: Math.round(taxParsed * 100),
+                smart_budgeting_enabled: draft.smartBudgetingEnabled,
                 category_budgets: categoryBudgets,
             });
         } catch (err: any) {
@@ -242,6 +247,19 @@ export function OnboardingScreen({
                             value={draft.estimatedTaxRate}
                             onChangeText={(value) => setDraft((prev) => ({...prev, estimatedTaxRate: value}))}
                         />
+
+                        <ToggleRow
+                            colors={colors}
+                            title="Smart budgeting"
+                            subtitle="Show high-confidence budget recommendations"
+                            enabled={draft.smartBudgetingEnabled}
+                            onToggle={() =>
+                                setDraft((prev) => ({
+                                    ...prev,
+                                    smartBudgetingEnabled: !prev.smartBudgetingEnabled,
+                                }))
+                            }
+                        />
                     </Card>
                 ) : null}
 
@@ -306,6 +324,9 @@ export function OnboardingScreen({
                         </Text>
                         <Text style={[commonStyles.body, { color: colors.text }]}>
                         Tax rate: {draft.estimatedTaxRate || "0.00"}%
+                        </Text>
+                        <Text style={[commonStyles.body, { color: colors.text }]}>
+                        Smart budgeting: {draft.smartBudgetingEnabled ? "On" : "Off"}
                         </Text>
 
                         <View style={{ gap: 6 }}>

@@ -14,13 +14,13 @@ export function devLog(...args: unknown[]) {
 
 export function devWarn(...args: unknown[]) {
     if (enabled) {
-        console.log("[DEV]", ...args);
+        console.warn("[DEV]", ...args);
     }
 }
 
 export function devError(...args: unknown[]) {
     if (enabled) {
-        console.log("[DEV]", ...args);
+        console.error("[DEV]", ...args);
     }
 }
 

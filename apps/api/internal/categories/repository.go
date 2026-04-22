@@ -2,9 +2,14 @@ package categories
 
 import (
 	"context"
+	"errors"
 
 	"mybudget-api/internal/db"
+
+	"github.com/jackc/pgx/v5"
 )
+
+var ErrCategoryNotFound = errors.New("category not found")
 
 type Repository struct {
 	db *db.DB
@@ -90,6 +95,45 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateCatego
 	}
 
 	return &c, nil
+}
+
+func (r *Repository) SoftDelete(ctx context.Context, userID, categoryID string) error {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	const archiveCategory = `
+		UPDATE categories
+		SET archived_at = NOW(), updated_at = NOW()
+		WHERE id = $1
+		  AND user_id = $2
+		  AND archived_at IS NULL
+		  AND is_system = FALSE
+		RETURNING id
+	`
+
+	var archivedID string
+	if err := tx.QueryRow(ctx, archiveCategory, categoryID, userID).Scan(&archivedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrCategoryNotFound
+		}
+		return err
+	}
+
+	const deactivateRecurring = `
+		UPDATE recurring_rules
+		SET active = FALSE, updated_at = NOW()
+		WHERE user_id = $1
+		  AND category_id = $2
+		  AND active = TRUE
+	`
+	if _, err := tx.Exec(ctx, deactivateRecurring, userID, categoryID); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *Repository) ExistsOwnedByUser(ctx context.Context, categoryID, userID string) (bool, error) {
