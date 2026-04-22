@@ -5,17 +5,29 @@ import (
 
 	"mybudget-api/internal/auth"
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/recurring"
 )
 
 type Handler struct {
-	repo *Repository
+	repo             *Repository
+	recurringService *recurring.Service
 }
 
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(repo *Repository, recurringService *recurring.Service) *Handler {
+	return &Handler{
+		repo:             repo,
+		recurringService: recurringService,
+	}
 }
 
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
+	if h.recurringService != nil {
+		if _, err := h.recurringService.SyncDueRules(r.Context(), ""); err != nil {
+			httpx.WriteInternalError(w, "recurring sync before analytics failed", err, "failed to load analytics")
+			return
+		}
+	}
+
 	userID, ok := auth.UserIDFromContext(r.Context())
 	if !ok {
 		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
