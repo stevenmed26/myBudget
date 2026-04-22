@@ -54,8 +54,8 @@ func (r *Repository) GetCategoryBreakdown(ctx context.Context, userID string) ([
 		   AND t.deleted_at IS NULL
 		   AND t.transaction_type = 'expense'
 		WHERE c.user_id = $1
-		  AND c.archived_at IS NULL
-		GROUP BY c.id, c.name, c.color
+		GROUP BY c.id, c.name, c.color, c.archived_at
+		HAVING c.archived_at IS NULL OR COALESCE(SUM(t.amount_cents), 0) > 0
 		ORDER BY amount_cents DESC, c.name ASC
 	`
 
