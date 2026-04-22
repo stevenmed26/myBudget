@@ -304,7 +304,7 @@ func (r *Repository) ApplyDueRule(ctx context.Context, userID string, ruleID str
 		}
 		created++
 
-		nextRun, err := advanceDate(currentRun, rule.Frequency)
+		nextRun, err := advanceDate(currentRun, rule.Frequency, rule.StartDate)
 		if err != nil {
 			return 0, false, err
 		}
@@ -334,8 +334,12 @@ func (r *Repository) ApplyDueRule(ctx context.Context, userID string, ruleID str
 	return created, advanced, nil
 }
 
-func advanceDate(currentDate, frequency string) (string, error) {
+func advanceDate(currentDate, frequency, anchorDate string) (string, error) {
 	current, err := time.Parse("2006-01-02", currentDate)
+	if err != nil {
+		return "", err
+	}
+	anchor, err := time.Parse("2006-01-02", anchorDate)
 	if err != nil {
 		return "", err
 	}
@@ -346,7 +350,7 @@ func advanceDate(currentDate, frequency string) (string, error) {
 	case "biweekly":
 		current = current.AddDate(0, 0, 14)
 	case "monthly":
-		current = current.AddDate(0, 1, 0)
+		current = nextMonthlyDate(current, anchor.Day())
 	case "yearly":
 		current = current.AddDate(1, 0, 0)
 	default:
@@ -354,6 +358,18 @@ func advanceDate(currentDate, frequency string) (string, error) {
 	}
 
 	return current.Format("2006-01-02"), nil
+}
+
+func nextMonthlyDate(current time.Time, anchorDay int) time.Time {
+	year, month, _ := current.Date()
+	location := current.Location()
+	firstOfNextMonth := time.Date(year, month+1, 1, 0, 0, 0, 0, location)
+	lastDayOfNextMonth := firstOfNextMonth.AddDate(0, 1, -1).Day()
+	day := anchorDay
+	if day > lastDayOfNextMonth {
+		day = lastDayOfNextMonth
+	}
+	return time.Date(firstOfNextMonth.Year(), firstOfNextMonth.Month(), day, 0, 0, 0, 0, location)
 }
 
 func transactionTypeForRule(ruleType string) string {

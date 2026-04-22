@@ -11,19 +11,22 @@ import (
 	"mybudget-api/internal/categories"
 	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/profile"
 	"mybudget-api/internal/recurring"
 )
 
 type Handler struct {
 	repo             *Repository
 	categoryRepo     *categories.Repository
+	profileRepo      *profile.Repository
 	recurringService *recurring.Service
 }
 
-func NewHandler(repo *Repository, categoryRepo *categories.Repository, recurringService *recurring.Service) *Handler {
+func NewHandler(repo *Repository, categoryRepo *categories.Repository, profileRepo *profile.Repository, recurringService *recurring.Service) *Handler {
 	return &Handler{
 		repo:             repo,
 		categoryRepo:     categoryRepo,
+		profileRepo:      profileRepo,
 		recurringService: recurringService,
 	}
 }
@@ -39,7 +42,28 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	endDate := r.URL.Query().Get("end_date")
 
 	if startDate == "" || endDate == "" {
-		current := periods.GetCurrentPeriod(time.Now(), "weekly", 1, 1)
+		currentProfile, err := h.profileRepo.GetCurrentByUser(r.Context(), userID)
+		if err != nil {
+			httpx.WriteInternalError(w, "transactions profile lookup failed", err, "failed to load transactions")
+			return
+		}
+		if currentProfile == nil {
+			httpx.WriteError(w, http.StatusBadRequest, "budget profile not found")
+			return
+		}
+
+		now := time.Now()
+		if currentProfile.Timezone != "" {
+			if loc, err := time.LoadLocation(currentProfile.Timezone); err == nil {
+				now = now.In(loc)
+			}
+		}
+		current := periods.GetCurrentPeriod(
+			now,
+			currentProfile.TrackingCadence,
+			currentProfile.WeekStartsOn,
+			currentProfile.MonthlyAnchorDay,
+		)
 		startDate = current.StartDate
 		endDate = current.EndDate
 	}
