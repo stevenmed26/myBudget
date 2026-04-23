@@ -10,6 +10,7 @@ import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 import { BudgetProfile, Category, RecurringRule } from "../types";
 import { formatCents } from "../lib/format";
+import { requestLocationCode } from "../lib/location";
 
 export function ProfileScreen({
   colors,
@@ -26,7 +27,7 @@ export function ProfileScreen({
   recurringRules: RecurringRule[];
   onSaveProfile: (input: {
     incomeAmount: string;
-    taxRate: string;
+    locationCode: string;
     trackingCadence: "weekly" | "monthly";
     smartBudgetingEnabled: boolean;
   }) => Promise<void>;
@@ -35,6 +36,7 @@ export function ProfileScreen({
 }) {
   const [incomeAmount, setIncomeAmount] = useState("");
   const [taxRate, setTaxRate] = useState("");
+  const [locationCode, setLocationCode] = useState("US-TX");
   const [trackingCadence, setTrackingCadence] = useState<"weekly" | "monthly">("weekly");
   const [smartBudgetingEnabled, setSmartBudgetingEnabled] = useState(true);
 
@@ -42,9 +44,19 @@ export function ProfileScreen({
     if (!profile) return;
     setIncomeAmount((profile.income_amount_cents / 100).toFixed(2));
     setTaxRate((profile.estimated_tax_rate_bps / 100).toFixed(2));
+    setLocationCode(profile.location_code || "US-TX");
     setTrackingCadence(profile.tracking_cadence);
     setSmartBudgetingEnabled(profile.smart_budgeting_enabled);
   }, [profile]);
+
+  async function useCurrentLocation() {
+    try {
+      const nextLocationCode = await requestLocationCode();
+      setLocationCode(nextLocationCode);
+    } catch (err: any) {
+      Alert.alert("Location unavailable", err?.message ?? "Unable to determine your tax location.");
+    }
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -70,14 +82,45 @@ export function ProfileScreen({
             onChangeText={setIncomeAmount}
           />
 
-          <LabeledInput
-            colors={colors}
-            label="Estimated tax rate (%)"
-            placeholder="0.00"
-            keyboardType="decimal-pad"
-            value={taxRate}
-            onChangeText={setTaxRate}
-          />
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 16,
+              padding: 14,
+              gap: 10,
+              backgroundColor: colors.surfaceRaised,
+            }}
+          >
+            <View style={commonStyles.rowBetween}>
+              <View style={{ gap: 4 }}>
+                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Tax location</Text>
+                <Text style={[commonStyles.body, { color: colors.text }]}>{locationCode}</Text>
+              </View>
+
+              <View style={{ alignItems: "flex-end", gap: 4 }}>
+                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Estimated rate</Text>
+                <Text style={[commonStyles.money, { color: colors.text }]}>{taxRate}%</Text>
+              </View>
+            </View>
+
+            <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+              Federal, state, Social Security, and Medicare estimates are calculated automatically.
+            </Text>
+
+            <Pressable
+              onPress={useCurrentLocation}
+              style={[
+                commonStyles.secondaryButton,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            >
+              <Text style={[commonStyles.label, { color: colors.text }]}>Use My Location</Text>
+            </Pressable>
+          </View>
 
           <PillSelector
             options={["weekly", "monthly"] as const}
@@ -99,7 +142,7 @@ export function ProfileScreen({
               try {
                 await onSaveProfile({
                   incomeAmount,
-                  taxRate,
+                  locationCode,
                   trackingCadence,
                   smartBudgetingEnabled,
                 });

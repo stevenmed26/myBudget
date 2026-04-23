@@ -6,7 +6,7 @@ import { BudgetProfile } from "../types";
 
 export type SaveProfileInput = {
   incomeAmount: string;
-  taxRate: string;
+  locationCode: string;
   trackingCadence: "weekly" | "monthly";
   smartBudgetingEnabled: boolean;
 };
@@ -25,13 +25,9 @@ export function useProfile({
       }
 
       const incomeParsed = Number(input.incomeAmount);
-      const taxParsed = Number(input.taxRate);
 
       if (Number.isNaN(incomeParsed) || incomeParsed < 0) {
         throw new Error("Income must be zero or greater");
-      }
-      if (Number.isNaN(taxParsed) || taxParsed < 0 || taxParsed > 100) {
-        throw new Error("Tax rate must be between 0 and 100");
       }
 
       await updateProfile({
@@ -43,8 +39,8 @@ export function useProfile({
         timezone: profile.timezone,
         income_amount_cents: Math.round(incomeParsed * 100),
         income_cadence: profile.income_cadence,
-        location_code: profile.location_code,
-        estimated_tax_rate_bps: Math.round(taxParsed * 100),
+        location_code: input.locationCode.trim() || profile.location_code,
+        estimated_tax_rate_bps: 0,
         smart_budgeting_enabled: input.smartBudgetingEnabled,
       });
       devLog("profile updated", {
