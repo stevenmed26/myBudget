@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { CalendarMonthPicker } from "../components/CalendarMonthPicker";
 import { Card } from "../components/Card";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
@@ -188,25 +189,11 @@ export function TransactionsScreen({
                 />
               </View>
 
-              <View style={{ gap: 6 }}>
-                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>
-                  Start date
-                </Text>
-                <TextInput
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textSoft}
-                  value={startDate}
-                  onChangeText={setStartDate}
-                  style={[
-                    commonStyles.input,
-                    {
-                      borderColor: colors.border,
-                      color: colors.text,
-                      backgroundColor: colors.surfaceRaised,
-                    },
-                  ]}
-                />
-              </View>
+              <CalendarMonthPicker
+                colors={colors}
+                selectedDate={startDate}
+                onSelectDate={setStartDate}
+              />
             </View>
           ) : null}
 

@@ -2,10 +2,12 @@ import React, { useMemo, useState } from "react";
 import { Alert, SafeAreaView, ScrollView, View, Text } from "react-native";
 import { Card } from "../components/Card";
 import { ActionButton } from "../components/ActionButton";
+import { CalendarMonthPicker } from "../components/CalendarMonthPicker";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
 import { ToggleRow } from "../components/ToggleRow";
+import { WeekStartPicker } from "../components/WeekStartPicker";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 
@@ -24,16 +26,6 @@ type Draft = {
         cadence: "weekly" | "monthly" | "yearly";
     }[];
 };
-
-const weekDays = [
-    { label: "Sun", value: 0 },
-    { label: "Mon", value: 1 },
-    { label: "Tue", value: 2 },
-    { label: "Wed", value: 3 },
-    { label: "Thu", value: 4 },
-    { label: "Fri", value: 5 },
-    { label: "Sat", value: 6 },
-] as const;
 
 export function OnboardingScreen({
     colors,
@@ -149,44 +141,24 @@ export function OnboardingScreen({
                         />
 
                         {draft.trackingCadence === "weekly" ? (
-                            <View style={{ gap: 10 }}>
-                                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Week starts on</Text>
-                                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                                    {weekDays.map((day) => {
-                                        const selected = draft.weekStartsOn === day.value;
-                                        return (
-                                            <Text
-                                                key={day.value}
-                                                onPress={() => setDraft((prev) => ({...prev, weekStartsOn: day.value }))}
-                                                style={[
-                                                    commonStyles.body,
-                                                    {
-                                                        paddingVertical: 10,
-                                                        paddingHorizontal: 12,
-                                                        borderRadius: 999,
-                                                        borderWidth: 1,
-                                                        borderColor: selected ? colors.accent : colors.border,
-                                                        backgroundColor: selected ? colors.accent : colors.surfaceRaised,
-                                                        color: selected ? colors.white : colors.text,
-                                                    },
-                                                ]}
-                                            >
-                                                {day.label}
-                                            </Text>
-                                        );
-                                    })}
-                                </View>
-                            </View>
+                            <WeekStartPicker
+                                colors={colors}
+                                value={draft.weekStartsOn}
+                                onChange={(value) =>
+                                    setDraft((prev) => ({ ...prev, weekStartsOn: value }))
+                                }
+                            />
                         ) : (
-                            <LabeledInput
+                            <CalendarMonthPicker
                                 colors={colors}
                                 label="Monthly anchor day"
-                                placeholder="1"
-                                keyboardType="number-pad"
-                                value={String(draft.monthlyAnchorDay)}
-                                onChangeText={(value) =>
-                                    setDraft((prev) => ({...prev,
-                                        monthlyAnchorDay: Math.max(1, Math.min(28, Number(value) || 1)),
+                                selectedDate=""
+                                selectedDay={draft.monthlyAnchorDay}
+                                maxDay={28}
+                                onSelectDate={(value) =>
+                                    setDraft((prev) => ({
+                                        ...prev,
+                                        monthlyAnchorDay: Number(value.slice(8, 10)),
                                     }))
                                 }
                             />
