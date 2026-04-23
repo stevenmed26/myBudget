@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"mybudget-api/internal/config"
 	"mybudget-api/internal/periods"
@@ -137,12 +138,12 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 
 func (s *Service) VerifyEmail(ctx context.Context, email, code string) (*AuthResponse, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
-	code = strings.TrimSpace(code)
+	code = normalizeVerificationCode(code)
 
 	if !looksLikeEmail(email) {
 		return nil, ErrInvalidEmailFormat
 	}
-	if code == "" {
+	if len(code) != 6 {
 		return nil, ErrVerificationRequired
 	}
 
@@ -178,7 +179,7 @@ func (s *Service) ResendVerification(ctx context.Context, email, ipAddress strin
 				ipAddress,
 				verificationEmailMaxSends,
 				verificationIPMaxSends,
-				verificationSendCooldown,
+				s.verificationSendCooldown(),
 				verificationSendWindow,
 			); err != nil {
 				return nil, err
@@ -237,7 +238,7 @@ func (s *Service) issueVerificationChallenge(ctx context.Context, user *UserReco
 		ipAddress,
 		verificationEmailMaxSends,
 		verificationIPMaxSends,
-		verificationSendCooldown,
+		s.verificationSendCooldown(),
 		verificationSendWindow,
 	); err != nil {
 		return nil, err
@@ -263,6 +264,23 @@ func (s *Service) issueVerificationChallenge(ctx context.Context, user *UserReco
 		Email:                user.Email,
 		Delivery:             delivery,
 	}, nil
+}
+
+func normalizeVerificationCode(code string) string {
+	var b strings.Builder
+	for _, r := range code {
+		if unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func (s *Service) verificationSendCooldown() time.Duration {
+	if s.cfg.AppEnv == "development" || s.cfg.AppEnv == "test" {
+		return 0
+	}
+	return verificationSendCooldown
 }
 
 func generateVerificationCode() (string, error) {
