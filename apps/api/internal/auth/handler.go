@@ -2,7 +2,9 @@ package auth
 
 import (
 	"errors"
+	"net"
 	"net/http"
+	"strings"
 
 	"mybudget-api/internal/httpx"
 )
@@ -26,7 +28,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.service.Register(r.Context(), req)
+	resp, err := h.service.Register(r.Context(), req, clientIP(r))
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrEmailPasswordRequired),
@@ -36,6 +38,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 			return
 		case errors.Is(err, ErrEmailAlreadyExists):
 			httpx.WriteError(w, http.StatusConflict, err.Error())
+			return
+		case errors.Is(err, ErrVerificationRateLimited):
+			httpx.WriteError(w, http.StatusTooManyRequests, err.Error())
 			return
 		default:
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to register user")
@@ -108,11 +113,14 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.service.ResendVerification(r.Context(), req.Email)
+	resp, err := h.service.ResendVerification(r.Context(), req.Email, clientIP(r))
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidEmailFormat):
 			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		case errors.Is(err, ErrVerificationRateLimited):
+			httpx.WriteError(w, http.StatusTooManyRequests, err.Error())
 			return
 		default:
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to resend verification")
@@ -156,4 +164,21 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		ID:    user.ID,
 		Email: user.Email,
 	})
+}
+
+func clientIP(r *http.Request) string {
+	if forwardedFor := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwardedFor != "" {
+		parts := strings.Split(forwardedFor, ",")
+		if ip := strings.TrimSpace(parts[0]); ip != "" {
+			return ip
+		}
+	}
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		return realIP
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
 }

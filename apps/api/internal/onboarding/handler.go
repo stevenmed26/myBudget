@@ -8,6 +8,7 @@ import (
 	"mybudget-api/internal/auth"
 	"mybudget-api/internal/httpx"
 	"mybudget-api/internal/periods"
+	"mybudget-api/internal/taxes"
 )
 
 type Handler struct {
@@ -82,6 +83,13 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 	if req.LocationCode == "" {
 		req.LocationCode = "US-TX"
 	}
+	taxEstimate := taxes.EstimateForProfile(taxes.ProfileInput{
+		TrackingCadence:   req.TrackingCadence,
+		IncomeAmountCents: req.IncomeAmountCents,
+		IncomeCadence:     req.IncomeCadence,
+		LocationCode:      req.LocationCode,
+	})
+	req.EstimatedTaxRateBps = taxEstimate.EffectiveRateBps
 	for i := range req.CategoryBudgets {
 		req.CategoryBudgets[i].CategoryName = strings.TrimSpace(req.CategoryBudgets[i].CategoryName)
 		req.CategoryBudgets[i].Cadence = strings.TrimSpace(req.CategoryBudgets[i].Cadence)

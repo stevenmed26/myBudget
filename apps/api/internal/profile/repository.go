@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"mybudget-api/internal/db"
+	"mybudget-api/internal/taxes"
 )
 
 type Repository struct {
@@ -126,6 +127,120 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 	}
 	defer tx.Rollback(ctx)
 
+	const updateProfile = `
+		UPDATE budget_profiles
+		SET tracking_cadence = $2,
+			week_starts_on = $3,
+			monthly_anchor_day = $4,
+			currency_code = $5,
+			locale = $6,
+			timezone = $7,
+			income_amount_cents = $8,
+			income_cadence = $9,
+			location_code = $10,
+			estimated_tax_rate_bps = $11,
+			smart_budgeting_enabled = $12,
+			updated_at = NOW()
+		WHERE user_id = $1
+	`
+	if _, err := tx.Exec(ctx, updateProfile,
+		userID,
+		req.TrackingCadence,
+		req.WeekStartsOn,
+		req.MonthlyAnchorDay,
+		req.CurrencyCode,
+		req.Locale,
+		req.Timezone,
+		req.IncomeAmountCents,
+		req.IncomeCadence,
+		req.LocationCode,
+		req.EstimatedTaxRateBps,
+		req.SmartBudgetingEnabled,
+	); err != nil {
+		return nil, err
+	}
+
+	const updateSameDay = `
+		UPDATE budget_profile_versions
+		SET tracking_cadence = $2,
+			week_starts_on = $3,
+			monthly_anchor_day = $4,
+			currency_code = $5,
+			locale = $6,
+			timezone = $7,
+			income_amount_cents = $8,
+			income_cadence = $9,
+			location_code = $10,
+			estimated_tax_rate_bps = $11,
+			smart_budgeting_enabled = $12
+		WHERE user_id = $1
+		  AND effective_from = $13::date
+		  AND effective_to IS NULL
+		RETURNING
+			user_id,
+			tracking_cadence,
+			week_starts_on,
+			monthly_anchor_day,
+			currency_code,
+			locale,
+			timezone,
+			income_amount_cents,
+			income_cadence,
+			location_code,
+			estimated_tax_rate_bps,
+			smart_budgeting_enabled,
+			created_at,
+			created_at AS updated_at
+	`
+	var p BudgetProfile
+	err = tx.QueryRow(ctx, updateSameDay,
+		userID,
+		req.TrackingCadence,
+		req.WeekStartsOn,
+		req.MonthlyAnchorDay,
+		req.CurrencyCode,
+		req.Locale,
+		req.Timezone,
+		req.IncomeAmountCents,
+		req.IncomeCadence,
+		req.LocationCode,
+		req.EstimatedTaxRateBps,
+		req.SmartBudgetingEnabled,
+		effectiveFrom,
+	).Scan(
+		&p.UserID,
+		&p.TrackingCadence,
+		&p.WeekStartsOn,
+		&p.MonthlyAnchorDay,
+		&p.CurrencyCode,
+		&p.Locale,
+		&p.Timezone,
+		&p.IncomeAmountCents,
+		&p.IncomeCadence,
+		&p.LocationCode,
+		&p.EstimatedTaxRateBps,
+		&p.SmartBudgetingEnabled,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err == nil {
+		if _, err := taxes.SyncRecurringRules(ctx, tx, userID, taxes.ProfileInput{
+			TrackingCadence:   req.TrackingCadence,
+			IncomeAmountCents: req.IncomeAmountCents,
+			IncomeCadence:     req.IncomeCadence,
+			LocationCode:      req.LocationCode,
+		}, effectiveFrom); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+		return &p, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
 	const closeOld = `
 		UPDATE budget_profile_versions
 		SET effective_to = ($2::date - INTERVAL '1 day')::date
@@ -170,7 +285,6 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 			created_at AS updated_at
 	`
 
-	var p BudgetProfile
 	err = tx.QueryRow(ctx, insertNew,
 		userID,
 		req.TrackingCadence,
@@ -202,6 +316,15 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 		&p.UpdatedAt,
 	)
 	if err != nil {
+		return nil, err
+	}
+
+	if _, err := taxes.SyncRecurringRules(ctx, tx, userID, taxes.ProfileInput{
+		TrackingCadence:   req.TrackingCadence,
+		IncomeAmountCents: req.IncomeAmountCents,
+		IncomeCadence:     req.IncomeCadence,
+		LocationCode:      req.LocationCode,
+	}, effectiveFrom); err != nil {
 		return nil, err
 	}
 

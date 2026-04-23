@@ -118,10 +118,19 @@ VALUES (
 ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO categories (user_id, name, color, is_default, counts_toward_budget, is_system)
-VALUES
-    ('11111111-1111-1111-1111-111111111111', 'Food', '#F97316', TRUE, TRUE, FALSE),
-    ('11111111-1111-1111-1111-111111111111', 'Savings', '#22C55E', TRUE, TRUE, FALSE),
-    ('11111111-1111-1111-1111-111111111111', 'Saved', '#14B8A6', TRUE, FALSE, TRUE),
-    ('11111111-1111-1111-1111-111111111111', 'Tax', '#EF4444', TRUE, TRUE, TRUE),
-    ('11111111-1111-1111-1111-111111111111', 'Housing', '#6366F1', TRUE, TRUE, FALSE)
-ON CONFLICT (user_id, name) DO NOTHING;
+SELECT '11111111-1111-1111-1111-111111111111', x.name, x.color, x.is_default, x.counts_toward_budget, x.is_system
+FROM (
+    VALUES
+        ('Food', '#F97316', TRUE, TRUE, FALSE),
+        ('Savings', '#22C55E', TRUE, TRUE, FALSE),
+        ('Saved', '#14B8A6', TRUE, FALSE, TRUE),
+        ('Withholding', '#EF4444', TRUE, TRUE, TRUE),
+        ('Housing', '#6366F1', TRUE, TRUE, FALSE)
+) AS x(name, color, is_default, counts_toward_budget, is_system)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM categories c
+    WHERE c.user_id = '11111111-1111-1111-1111-111111111111'
+      AND LOWER(c.name) = LOWER(x.name)
+      AND c.archived_at IS NULL
+);

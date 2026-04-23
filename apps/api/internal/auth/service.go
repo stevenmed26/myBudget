@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"mybudget-api/internal/config"
 	"mybudget-api/internal/periods"
@@ -28,16 +29,25 @@ type Service struct {
 var emailPattern = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 var (
-	ErrEmailPasswordRequired = errors.New("email and password are required")
-	ErrInvalidEmailFormat    = errors.New("enter a valid email address")
-	ErrPasswordTooShort      = errors.New("password must be at least 8 characters")
-	ErrEmailAlreadyExists    = errors.New("an account with that email already exists")
-	ErrInvalidCredentials    = errors.New("invalid email or password")
-	ErrRefreshTokenRequired  = errors.New("refresh token is required")
-	ErrInvalidRefreshToken   = errors.New("invalid refresh token")
-	ErrEmailNotVerified      = errors.New("email not verified")
-	ErrVerificationRequired  = errors.New("verification code is required")
-	ErrInvalidVerification   = errors.New("invalid or expired verification code")
+	ErrEmailPasswordRequired   = errors.New("email and password are required")
+	ErrInvalidEmailFormat      = errors.New("enter a valid email address")
+	ErrPasswordTooShort        = errors.New("password must be at least 8 characters")
+	ErrEmailAlreadyExists      = errors.New("an account with that email already exists")
+	ErrInvalidCredentials      = errors.New("invalid email or password")
+	ErrRefreshTokenRequired    = errors.New("refresh token is required")
+	ErrInvalidRefreshToken     = errors.New("invalid refresh token")
+	ErrEmailNotVerified        = errors.New("email not verified")
+	ErrVerificationRequired    = errors.New("verification code is required")
+	ErrInvalidVerification     = errors.New("invalid or expired verification code")
+	ErrVerificationRateLimited = errors.New("too many verification attempts; try again later")
+)
+
+const (
+	verificationCodeMaxAttempts = 5
+	verificationEmailMaxSends   = 5
+	verificationIPMaxSends      = 20
+	verificationSendCooldown    = time.Minute
+	verificationSendWindow      = time.Hour
 )
 
 func NewService(repo *Repository, cfg config.Config) *Service {
@@ -51,7 +61,7 @@ func looksLikeEmail(email string) bool {
 	return emailPattern.MatchString(strings.TrimSpace(email))
 }
 
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*VerificationChallengeResponse, error) {
+func (s *Service) Register(ctx context.Context, req RegisterRequest, ipAddress string) (*VerificationChallengeResponse, error) {
 	email := strings.TrimSpace(strings.ToLower(req.Email))
 	password := req.Password
 
@@ -70,7 +80,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*Verificat
 		if user.EmailVerifiedAt != nil {
 			return nil, ErrEmailAlreadyExists
 		}
-		return s.issueVerificationChallenge(ctx, user)
+		return s.issueVerificationChallenge(ctx, user, ipAddress)
 	}
 	if !IsNotFound(err) {
 		return nil, err
@@ -94,7 +104,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*Verificat
 		return nil, err
 	}
 
-	return s.issueVerificationChallenge(ctx, user)
+	return s.issueVerificationChallenge(ctx, user, ipAddress)
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
@@ -128,16 +138,16 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 
 func (s *Service) VerifyEmail(ctx context.Context, email, code string) (*AuthResponse, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
-	code = strings.TrimSpace(code)
+	code = normalizeVerificationCode(code)
 
 	if !looksLikeEmail(email) {
 		return nil, ErrInvalidEmailFormat
 	}
-	if code == "" {
+	if len(code) != 6 {
 		return nil, ErrVerificationRequired
 	}
 
-	userID, err := s.repo.ConsumeVerificationCode(ctx, email, code)
+	userID, err := s.repo.ConsumeVerificationCode(ctx, email, code, verificationCodeMaxAttempts)
 	if err != nil {
 		return nil, ErrInvalidVerification
 	}
@@ -154,7 +164,7 @@ func (s *Service) VerifyEmail(ctx context.Context, email, code string) (*AuthRes
 	return s.issueTokens(ctx, user)
 }
 
-func (s *Service) ResendVerification(ctx context.Context, email string) (*ResendVerificationResponse, error) {
+func (s *Service) ResendVerification(ctx context.Context, email, ipAddress string) (*ResendVerificationResponse, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
 	if !looksLikeEmail(email) {
 		return nil, ErrInvalidEmailFormat
@@ -163,6 +173,17 @@ func (s *Service) ResendVerification(ctx context.Context, email string) (*Resend
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if IsNotFound(err) {
+			if err := s.repo.RecordVerificationSendAttempt(
+				ctx,
+				email,
+				ipAddress,
+				verificationEmailMaxSends,
+				verificationIPMaxSends,
+				s.verificationSendCooldown(),
+				verificationSendWindow,
+			); err != nil {
+				return nil, err
+			}
 			return &ResendVerificationResponse{
 				Sent:     true,
 				Email:    email,
@@ -180,7 +201,7 @@ func (s *Service) ResendVerification(ctx context.Context, email string) (*Resend
 		}, nil
 	}
 
-	challenge, err := s.issueVerificationChallenge(ctx, user)
+	challenge, err := s.issueVerificationChallenge(ctx, user, ipAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -197,13 +218,9 @@ func (s *Service) Refresh(ctx context.Context, rawRefreshToken string) (*AuthRes
 		return nil, ErrRefreshTokenRequired
 	}
 
-	userID, err := s.repo.FindValidRefreshToken(ctx, rawRefreshToken)
+	userID, err := s.repo.ConsumeRefreshToken(ctx, rawRefreshToken)
 	if err != nil {
 		return nil, ErrInvalidRefreshToken
-	}
-
-	if err := s.repo.RevokeRefreshToken(ctx, rawRefreshToken); err != nil {
-		return nil, err
 	}
 
 	user, err := s.repo.GetUserByID(ctx, userID)
@@ -214,7 +231,19 @@ func (s *Service) Refresh(ctx context.Context, rawRefreshToken string) (*AuthRes
 	return s.issueTokens(ctx, user)
 }
 
-func (s *Service) issueVerificationChallenge(ctx context.Context, user *UserRecord) (*VerificationChallengeResponse, error) {
+func (s *Service) issueVerificationChallenge(ctx context.Context, user *UserRecord, ipAddress string) (*VerificationChallengeResponse, error) {
+	if err := s.repo.RecordVerificationSendAttempt(
+		ctx,
+		user.Email,
+		ipAddress,
+		verificationEmailMaxSends,
+		verificationIPMaxSends,
+		s.verificationSendCooldown(),
+		verificationSendWindow,
+	); err != nil {
+		return nil, err
+	}
+
 	code, err := generateVerificationCode()
 	if err != nil {
 		return nil, err
@@ -235,6 +264,23 @@ func (s *Service) issueVerificationChallenge(ctx context.Context, user *UserReco
 		Email:                user.Email,
 		Delivery:             delivery,
 	}, nil
+}
+
+func normalizeVerificationCode(code string) string {
+	var b strings.Builder
+	for _, r := range code {
+		if unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func (s *Service) verificationSendCooldown() time.Duration {
+	if s.cfg.AppEnv == "development" || s.cfg.AppEnv == "test" {
+		return 0
+	}
+	return verificationSendCooldown
 }
 
 func generateVerificationCode() (string, error) {

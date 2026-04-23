@@ -35,7 +35,7 @@ export function VerifyEmailScreen({
 
   async function handleVerify() {
     const trimmedEmail = email.trim();
-    const trimmedCode = code.trim();
+    const trimmedCode = code.replace(/\D/g, "");
 
     setError(null);
     setInfo(null);
@@ -45,8 +45,8 @@ export function VerifyEmailScreen({
       return;
     }
 
-    if (!trimmedCode) {
-      setError("Verification code is required.");
+    if (trimmedCode.length !== 6) {
+      setError("Enter the 6-digit verification code.");
       return;
     }
 
@@ -130,7 +130,7 @@ export function VerifyEmailScreen({
             keyboardType="number-pad"
             value={code}
             onChangeText={(value) => {
-              setCode(value);
+              setCode(value.replace(/\D/g, "").slice(0, 6));
               if (error) setError(null);
             }}
             style={[

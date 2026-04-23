@@ -2,10 +2,13 @@ import React, { useMemo, useState } from "react";
 import { Alert, SafeAreaView, ScrollView, View, Text } from "react-native";
 import { Card } from "../components/Card";
 import { ActionButton } from "../components/ActionButton";
+import { CalendarMonthPicker } from "../components/CalendarMonthPicker";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
 import { ToggleRow } from "../components/ToggleRow";
+import { WeekStartPicker } from "../components/WeekStartPicker";
+import { requestLocationCode } from "../lib/location";
 import { commonStyles } from "../styles/common";
 import { ThemeColors } from "../styles/theme";
 
@@ -16,7 +19,6 @@ type Draft = {
     incomeAmount: string;
     incomeCadence: "weekly" | "biweekly" | "monthly" | "yearly";
     locationCode: string;
-    estimatedTaxRate: string;
     smartBudgetingEnabled: boolean;
     categoryBudgets: {
         categoryName: string;
@@ -24,16 +26,6 @@ type Draft = {
         cadence: "weekly" | "monthly" | "yearly";
     }[];
 };
-
-const weekDays = [
-    { label: "Sun", value: 0 },
-    { label: "Mon", value: 1 },
-    { label: "Tue", value: 2 },
-    { label: "Wed", value: 3 },
-    { label: "Thu", value: 4 },
-    { label: "Fri", value: 5 },
-    { label: "Sat", value: 6 },
-] as const;
 
 export function OnboardingScreen({
     colors,
@@ -65,13 +57,11 @@ export function OnboardingScreen({
         incomeAmount: "",
         incomeCadence: "monthly",
         locationCode: "US-TX",
-        estimatedTaxRate: "",
         smartBudgetingEnabled: true,
         categoryBudgets: [
             { categoryName: "Food", amount: "150.00", cadence: "weekly" },
             { categoryName: "Housing", amount: "300.00", cadence: "weekly" },
             { categoryName: "Savings", amount: "100.00", cadence: "weekly" },
-            { categoryName: "Tax", amount: "120.00", cadence: "weekly" },
         ],
     });
 
@@ -81,15 +71,9 @@ export function OnboardingScreen({
 
     async function finish() {
         const incomeParsed = Number(draft.incomeAmount);
-        const taxParsed = Number(draft.estimatedTaxRate);
 
         if (Number.isNaN(incomeParsed) || incomeParsed < 0) {
             Alert.alert("Invalid income amount", "Enter a valid income amount.");
-            return;
-        }
-
-        if (Number.isNaN(taxParsed) || taxParsed < 0 || taxParsed > 100) {
-            Alert.alert("Invalid tax rate", "Enter a valid estimated tax rate (0-100%).");
             return;
         }
 
@@ -116,12 +100,21 @@ export function OnboardingScreen({
                 income_amount_cents: Math.round(incomeParsed * 100),
                 income_cadence: draft.incomeCadence,
                 location_code: draft.locationCode.trim() || "US-TX",
-                estimated_tax_rate_bps: Math.round(taxParsed * 100),
+                estimated_tax_rate_bps: 0,
                 smart_budgeting_enabled: draft.smartBudgetingEnabled,
                 category_budgets: categoryBudgets,
             });
         } catch (err: any) {
             Alert.alert("Onboarding failed", err?.message ?? "Unknown error");
+        }
+    }
+
+    async function useCurrentLocation() {
+        try {
+            const nextLocationCode = await requestLocationCode();
+            setDraft((prev) => ({ ...prev, locationCode: nextLocationCode }));
+        } catch (err: any) {
+            Alert.alert("Location unavailable", err?.message ?? "Unable to determine your tax location.");
         }
     }
 
@@ -149,44 +142,24 @@ export function OnboardingScreen({
                         />
 
                         {draft.trackingCadence === "weekly" ? (
-                            <View style={{ gap: 10 }}>
-                                <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Week starts on</Text>
-                                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                                    {weekDays.map((day) => {
-                                        const selected = draft.weekStartsOn === day.value;
-                                        return (
-                                            <Text
-                                                key={day.value}
-                                                onPress={() => setDraft((prev) => ({...prev, weekStartsOn: day.value }))}
-                                                style={[
-                                                    commonStyles.body,
-                                                    {
-                                                        paddingVertical: 10,
-                                                        paddingHorizontal: 12,
-                                                        borderRadius: 999,
-                                                        borderWidth: 1,
-                                                        borderColor: selected ? colors.accent : colors.border,
-                                                        backgroundColor: selected ? colors.accent : colors.surfaceRaised,
-                                                        color: selected ? colors.white : colors.text,
-                                                    },
-                                                ]}
-                                            >
-                                                {day.label}
-                                            </Text>
-                                        );
-                                    })}
-                                </View>
-                            </View>
+                            <WeekStartPicker
+                                colors={colors}
+                                value={draft.weekStartsOn}
+                                onChange={(value) =>
+                                    setDraft((prev) => ({ ...prev, weekStartsOn: value }))
+                                }
+                            />
                         ) : (
-                            <LabeledInput
+                            <CalendarMonthPicker
                                 colors={colors}
                                 label="Monthly anchor day"
-                                placeholder="1"
-                                keyboardType="number-pad"
-                                value={String(draft.monthlyAnchorDay)}
-                                onChangeText={(value) =>
-                                    setDraft((prev) => ({...prev,
-                                        monthlyAnchorDay: Math.max(1, Math.min(28, Number(value) || 1)),
+                                selectedDate=""
+                                selectedDay={draft.monthlyAnchorDay}
+                                maxDay={28}
+                                onSelectDate={(value) =>
+                                    setDraft((prev) => ({
+                                        ...prev,
+                                        monthlyAnchorDay: Number(value.slice(8, 10)),
                                     }))
                                 }
                             />
@@ -227,25 +200,31 @@ export function OnboardingScreen({
                     <Card colors={colors}>
                         <SectionHeader
                             colors={colors}
-                            title="Tax and location"
-                            subtitle="You can refine this later in your profile settings"
+                            title="Withholding and location"
+                            subtitle="Allow location access to estimate federal, state, Social Security, and Medicare withholding"
                         />
 
-                        <LabeledInput
-                            colors={colors}
-                            label="Location code"
-                            placeholder="US-TX"
-                            value={draft.locationCode}
-                            onChangeText={(value) => setDraft((prev) => ({...prev, locationCode: value}))}
-                        />
+                        <View
+                            style={{
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                borderRadius: 16,
+                                padding: 14,
+                                gap: 6,
+                                backgroundColor: colors.surfaceRaised,
+                            }}
+                        >
+                            <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Withholding location</Text>
+                            <Text style={[commonStyles.body, { color: colors.text }]}>{draft.locationCode}</Text>
+                            <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
+                                We use this to create recurring estimated tax transactions based on your tracking cadence.
+                            </Text>
+                        </View>
 
-                        <LabeledInput
+                        <ActionButton
+                            label="Use My Location"
                             colors={colors}
-                            label="Estimated tax rate (%)"
-                            placeholder="0.00"
-                            keyboardType="decimal-pad"
-                            value={draft.estimatedTaxRate}
-                            onChangeText={(value) => setDraft((prev) => ({...prev, estimatedTaxRate: value}))}
+                            onPress={useCurrentLocation}
                         />
 
                         <ToggleRow
@@ -323,7 +302,7 @@ export function OnboardingScreen({
                         Location: {draft.locationCode || "US-TX"}
                         </Text>
                         <Text style={[commonStyles.body, { color: colors.text }]}>
-                        Tax rate: {draft.estimatedTaxRate || "0.00"}%
+                        Withholding estimate: automatic
                         </Text>
                         <Text style={[commonStyles.body, { color: colors.text }]}>
                         Smart budgeting: {draft.smartBudgetingEnabled ? "On" : "Off"}

@@ -15,11 +15,19 @@ import {
   ResendVerificationResponse,
 } from "./types";
 import { devWarn } from "./lib/devlog";
+import {
+  clearSession,
+  getRefreshToken,
+  setAuthToken as storeAccessToken,
+  setRefreshToken as storeRefreshToken,
+} from "./lib/secureStore";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080/api/v1";
 
 let authToken: string | null = null;
+let refreshPromise: Promise<string | null> | null = null;
+let sessionExpiredHandler: (() => void | Promise<void>) | null = null;
 
 export class ApiError extends Error {
   status: number;
@@ -41,12 +49,17 @@ export function setApiAuthToken(token: string | null) {
   authToken = token;
 }
 
-function buildHeaders(extra?: Record<string, string>) {
-  return {
-    "Content-Type": "application/json",
-    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-    ...(extra ?? {}),
-  };
+export function setApiSessionExpiredHandler(handler: (() => void | Promise<void>) | null) {
+  sessionExpiredHandler = handler;
+}
+
+function buildHeaders(extra?: HeadersInit, token: string | null = authToken) {
+  const headers = new Headers(extra);
+  headers.set("Content-Type", "application/json");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return headers;
 }
 
 function safeJsonParse(value: string): unknown {
@@ -86,11 +99,72 @@ async function handle<T>(res: Response): Promise<T> {
   return (body as T) ?? (JSON.parse(rawText) as T);
 }
 
-export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(`${API_BASE_URL}/categories`, {
-    headers: buildHeaders(),
+async function refreshSession(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = await getRefreshToken();
+      if (!refreshToken) {
+        authToken = null;
+        await clearSession();
+        await sessionExpiredHandler?.();
+        return null;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: buildHeaders(undefined, null),
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        const data = await handle<AuthResponse>(res);
+        authToken = data.access_token;
+        await Promise.all([
+          storeAccessToken(data.access_token),
+          storeRefreshToken(data.refresh_token),
+        ]);
+        return data.access_token;
+      } catch (err) {
+        devWarn("token refresh failed; clearing session", err);
+        authToken = null;
+        await clearSession();
+        await sessionExpiredHandler?.();
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+
+  return refreshPromise;
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  options: { authenticated?: boolean } = {}
+): Promise<T> {
+  const authenticated = options.authenticated ?? true;
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: buildHeaders(init.headers),
   });
-  const data = await handle<{ categories: Category[] }>(res);
+
+  if (authenticated && res.status === 401) {
+    const refreshedToken = await refreshSession();
+    if (refreshedToken) {
+      const retry = await fetch(`${API_BASE_URL}${path}`, {
+        ...init,
+        headers: buildHeaders(init.headers, refreshedToken),
+      });
+      return handle<T>(retry);
+    }
+  }
+
+  return handle<T>(res);
+}
+
+export async function fetchCategories(): Promise<Category[]> {
+  const data = await request<{ categories: Category[] }>("/categories");
   return data.categories;
 }
 
@@ -100,27 +174,20 @@ export async function createCategory(input: {
   icon?: string | null;
   counts_toward_budget: boolean;
 }) {
-  const res = await fetch(`${API_BASE_URL}/categories`, {
+  return request<Category>("/categories", {
     method: "POST",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<Category>(res);
 }
 
 export async function deleteCategory(categoryID: string) {
-  const res = await fetch(`${API_BASE_URL}/categories/${categoryID}`, {
+  return request<{ deleted: boolean }>(`/categories/${categoryID}`, {
     method: "DELETE",
-    headers: buildHeaders(),
   });
-  return handle<{ deleted: boolean }>(res);
 }
 
 export async function fetchTransactions(): Promise<Transaction[]> {
-  const res = await fetch(`${API_BASE_URL}/transactions`, {
-    headers: buildHeaders(),
-  });
-  const data = await handle<{ transactions: Transaction[] }>(res);
+  const data = await request<{ transactions: Transaction[] }>("/transactions");
   return data.transactions;
 }
 
@@ -132,27 +199,37 @@ export async function createTransaction(input: {
   merchant_name?: string;
   note?: string;
 }) {
-  const res = await fetch(`${API_BASE_URL}/transactions`, {
+  return request<Transaction>("/transactions", {
     method: "POST",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<Transaction>(res);
+}
+
+export async function updateTransaction(
+  transactionID: string,
+  input: {
+    category_id: string;
+    amount_cents: number;
+    transaction_type: "expense" | "income";
+    transaction_date: string;
+    merchant_name?: string;
+    note?: string;
+  }
+) {
+  return request<Transaction>(`/transactions/${transactionID}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 
 export async function deleteTransaction(transactionID: string) {
-  const res = await fetch(`${API_BASE_URL}/transactions/${transactionID}`, {
+  return request<{ deleted: boolean }>(`/transactions/${transactionID}`, {
     method: "DELETE",
-    headers: buildHeaders(),
   });
-  return handle<{ deleted: boolean }>(res);
 }
 
 export async function fetchRecurringRules(): Promise<RecurringRule[]> {
-  const res = await fetch(`${API_BASE_URL}/recurring-rules`, {
-    headers: buildHeaders(),
-  });
-  const data = await handle<{ recurring_rules: RecurringRule[] }>(res);
+  const data = await request<{ recurring_rules: RecurringRule[] }>("/recurring-rules");
   return data.recurring_rules;
 }
 
@@ -165,12 +242,10 @@ export async function createRecurringRule(input: {
   start_date: string;
   end_date?: string | null;
 }) {
-  const res = await fetch(`${API_BASE_URL}/recurring-rules`, {
+  return request<RecurringRule>("/recurring-rules", {
     method: "POST",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<RecurringRule>(res);
 }
 
 export async function updateRecurringRule(
@@ -186,27 +261,20 @@ export async function updateRecurringRule(
     active: boolean;
   }
 ) {
-  const res = await fetch(`${API_BASE_URL}/recurring-rules/${ruleID}`, {
+  return request<RecurringRule>(`/recurring-rules/${ruleID}`, {
     method: "PUT",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<RecurringRule>(res);
 }
 
 export async function deleteRecurringRule(ruleID: string) {
-  const res = await fetch(`${API_BASE_URL}/recurring-rules/${ruleID}`, {
+  return request<{ deleted: boolean }>(`/recurring-rules/${ruleID}`, {
     method: "DELETE",
-    headers: buildHeaders(),
   });
-  return handle<{ deleted: boolean }>(res);
 }
 
 export async function fetchProfile(): Promise<BudgetProfile> {
-  const res = await fetch(`${API_BASE_URL}/profile`, {
-    headers: buildHeaders(),
-  });
-  return handle<BudgetProfile>(res);
+  return request<BudgetProfile>("/profile");
 }
 
 export async function updateProfile(input: {
@@ -222,34 +290,23 @@ export async function updateProfile(input: {
   estimated_tax_rate_bps: number;
   smart_budgeting_enabled: boolean;
 }) {
-  const res = await fetch(`${API_BASE_URL}/profile`, {
+  return request<BudgetProfile>("/profile", {
     method: "PUT",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<BudgetProfile>(res);
 }
 
 export async function fetchHomeSummary(): Promise<HomeSummary> {
-  const res = await fetch(`${API_BASE_URL}/home/summary`, {
-    headers: buildHeaders(),
-  });
-  return handle<HomeSummary>(res);
+  return request<HomeSummary>("/home/summary");
 }
 
 export async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
-  const res = await fetch(`${API_BASE_URL}/category-budgets`, {
-    headers: buildHeaders(),
-  });
-  const data = await handle<{ category_budgets: CategoryBudget[] }>(res);
+  const data = await request<{ category_budgets: CategoryBudget[] }>("/category-budgets");
   return data.category_budgets;
 }
 
 export async function fetchBudgetSuggestions(): Promise<BudgetSuggestionsResponse> {
-  const res = await fetch(`${API_BASE_URL}/recommendations/budget-suggestions`, {
-    headers: buildHeaders(),
-  });
-  return handle<BudgetSuggestionsResponse>(res);
+  return request<BudgetSuggestionsResponse>("/recommendations/budget-suggestions");
 }
 
 export async function upsertCategoryBudget(input: {
@@ -258,86 +315,83 @@ export async function upsertCategoryBudget(input: {
   cadence: "weekly" | "monthly" | "yearly";
   effective_from: string;
 }) {
-  const res = await fetch(`${API_BASE_URL}/category-budgets`, {
+  return request<CategoryBudget>("/category-budgets", {
     method: "POST",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<CategoryBudget>(res);
 }
 
 export async function closeCurrentPeriod(): Promise<ClosePeriodResponse> {
-  const res = await fetch(`${API_BASE_URL}/periods/close-current`, {
+  return request<ClosePeriodResponse>("/periods/close-current", {
     method: "POST",
-    headers: buildHeaders(),
   });
-  return handle<ClosePeriodResponse>(res);
 }
 
 export async function fetchAnalyticsSummary(): Promise<AnalyticsSummary> {
-  const res = await fetch(`${API_BASE_URL}/analytics/summary`, {
-    headers: buildHeaders(),
-  });
-  return handle<AnalyticsSummary>(res);
+  return request<AnalyticsSummary>("/analytics/summary");
 }
 
 export async function register(input: { email: string; password: string }) {
-  const res = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(input),
-  });
-  return handle<RegisterResponse>(res);
+  return request<RegisterResponse>(
+    "/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { authenticated: false }
+  );
 }
 
 export async function login(input: { email: string; password: string }) {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(input),
-  });
-  return handle<AuthResponse>(res);
+  return request<AuthResponse>(
+    "/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { authenticated: false }
+  );
 }
 
 export async function verifyEmail(input: { email: string; code: string }) {
-  const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(input),
-  });
-  return handle<AuthResponse>(res);
+  return request<AuthResponse>(
+    "/auth/verify-email",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { authenticated: false }
+  );
 }
 
 export async function resendVerification(input: { email: string }) {
-  const res = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(input),
-  });
-  return handle<ResendVerificationResponse>(res);
+  return request<ResendVerificationResponse>(
+    "/auth/resend-verification",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { authenticated: false }
+  );
 }
 
 export async function refreshAccessToken(input: { refresh_token: string }) {
-  const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(input),
-  });
-  return handle<AuthResponse>(res);
+  return request<AuthResponse>(
+    "/auth/refresh",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    { authenticated: false }
+  );
 }
 
 export async function fetchMe(): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE_URL}/auth/me`, {
-    headers: buildHeaders(),
-  });
-  return handle<AuthUser>(res);
+  return request<AuthUser>("/auth/me");
 }
 
 export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
-  const res = await fetch(`${API_BASE_URL}/onboarding/status`, {
-    headers: buildHeaders(),
-  });
-  return handle<OnboardingStatus>(res);
+  return request<OnboardingStatus>("/onboarding/status");
 }
 
 export async function submitOnboarding(input: {
@@ -355,10 +409,8 @@ export async function submitOnboarding(input: {
     cadence: "weekly" | "monthly" | "yearly";
   }[];
 }) {
-  const res = await fetch(`${API_BASE_URL}/onboarding/submit`, {
+  return request<OnboardingStatus>("/onboarding/submit", {
     method: "POST",
-    headers: buildHeaders(),
     body: JSON.stringify(input),
   });
-  return handle<OnboardingStatus>(res);
 }

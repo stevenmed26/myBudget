@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../components/Card";
+import { ColorWheelPicker } from "../components/ColorWheelPicker";
 import { LabeledInput } from "../components/LabeledInput";
 import { PillSelector } from "../components/PillSelector";
 import { SectionHeader } from "../components/SectionHeader";
@@ -99,13 +100,10 @@ export function CategoriesScreen({
               onChangeText={setNewName}
             />
 
-            <LabeledInput
+            <ColorWheelPicker
               colors={colors}
-              label="Color"
-              placeholder="#4F7CFF"
-              autoCapitalize="characters"
               value={newColor}
-              onChangeText={setNewColor}
+              onChange={setNewColor}
             />
 
             <LabeledInput

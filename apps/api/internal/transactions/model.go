@@ -25,3 +25,5 @@ type CreateTransactionRequest struct {
 	MerchantName    *string `json:"merchant_name"`
 	Note            *string `json:"note"`
 }
+
+type UpdateTransactionRequest = CreateTransactionRequest
