@@ -61,6 +61,8 @@ func TestValidateAcceptsProductionExplicitConfig(t *testing.T) {
 		CORSAllowedOrigins: []string{"https://app.example.com"},
 		SMTPHost:           "smtp.example.com",
 		SMTPPort:           "587",
+		SMTPUsername:       "resend",
+		SMTPPassword:       "re_test",
 		EmailFrom:          "noreply@example.com",
 	}
 

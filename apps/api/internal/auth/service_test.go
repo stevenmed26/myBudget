@@ -25,3 +25,26 @@ func TestVerificationSendCooldownIsDisabledInDevelopment(t *testing.T) {
 		t.Fatalf("production cooldown = %s, want %s", got, time.Minute)
 	}
 }
+
+func TestSMTPConfiguredRequiresAllResendFields(t *testing.T) {
+	service := NewService(nil, config.Config{
+		SMTPHost:     "smtp.resend.com",
+		SMTPPort:     "587",
+		SMTPUsername: "resend",
+		SMTPPassword: "re_test",
+		EmailFrom:    "MyBudget <onboarding@example.com>",
+	})
+	if !service.smtpConfigured() {
+		t.Fatal("smtpConfigured = false, want true")
+	}
+
+	service = NewService(nil, config.Config{
+		SMTPHost:     "smtp.resend.com",
+		SMTPPort:     "587",
+		SMTPUsername: "resend",
+		EmailFrom:    "MyBudget <onboarding@example.com>",
+	})
+	if service.smtpConfigured() {
+		t.Fatal("smtpConfigured = true with missing password, want false")
+	}
+}

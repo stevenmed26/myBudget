@@ -80,8 +80,8 @@ func validate(cfg Config) error {
 		if allowsWildcardOrigin(cfg.CORSAllowedOrigins) {
 			return errors.New("CORS_ALLOWED_ORIGINS must be set to explicit origins outside development")
 		}
-		if cfg.SMTPHost == "" || cfg.SMTPPort == "" || cfg.EmailFrom == "" {
-			return errors.New("SMTP_HOST, SMTP_PORT, and EMAIL_FROM must be set outside development")
+		if cfg.SMTPHost == "" || cfg.SMTPPort == "" || cfg.SMTPUsername == "" || cfg.SMTPPassword == "" || cfg.EmailFrom == "" {
+			return errors.New("SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, and EMAIL_FROM must be set outside development")
 		}
 	}
 

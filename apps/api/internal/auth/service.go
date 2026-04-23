@@ -292,13 +292,10 @@ func generateVerificationCode() (string, error) {
 }
 
 func (s *Service) sendVerificationCode(email, code string) (string, error) {
-	if s.cfg.SMTPHost != "" && s.cfg.SMTPPort != "" && s.cfg.EmailFrom != "" {
+	if s.smtpConfigured() {
 		addr := fmt.Sprintf("%s:%s", s.cfg.SMTPHost, s.cfg.SMTPPort)
 
-		var auth smtp.Auth
-		if s.cfg.SMTPUsername != "" {
-			auth = smtp.PlainAuth("", s.cfg.SMTPUsername, s.cfg.SMTPPassword, s.cfg.SMTPHost)
-		}
+		auth := smtp.PlainAuth("", s.cfg.SMTPUsername, s.cfg.SMTPPassword, s.cfg.SMTPHost)
 
 		body := "" +
 			"Subject: Verify your myBudget email\r\n" +
@@ -321,6 +318,14 @@ func (s *Service) sendVerificationCode(email, code string) (string, error) {
 	}
 
 	return "", errors.New("email delivery is not configured")
+}
+
+func (s *Service) smtpConfigured() bool {
+	return s.cfg.SMTPHost != "" &&
+		s.cfg.SMTPPort != "" &&
+		s.cfg.SMTPUsername != "" &&
+		s.cfg.SMTPPassword != "" &&
+		s.cfg.EmailFrom != ""
 }
 
 func (s *Service) issueTokens(ctx context.Context, user *UserRecord) (*AuthResponse, error) {
