@@ -205,6 +205,23 @@ export async function createTransaction(input: {
   });
 }
 
+export async function updateTransaction(
+  transactionID: string,
+  input: {
+    category_id: string;
+    amount_cents: number;
+    transaction_type: "expense" | "income";
+    transaction_date: string;
+    merchant_name?: string;
+    note?: string;
+  }
+) {
+  return request<Transaction>(`/transactions/${transactionID}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function deleteTransaction(transactionID: string) {
   return request<{ deleted: boolean }>(`/transactions/${transactionID}`, {
     method: "DELETE",

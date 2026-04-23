@@ -116,6 +116,7 @@ func NewRouter(cfg config.Config, deps Dependencies) http.Handler {
 
 			r.Get("/transactions", deps.TransactionHandler.List)
 			r.Post("/transactions", deps.TransactionHandler.Create)
+			r.Put("/transactions/{transactionID}", deps.TransactionHandler.Update)
 			r.Delete("/transactions/{transactionID}", deps.TransactionHandler.Delete)
 
 			r.Get("/recurring-rules", deps.RecurringHandler.List)

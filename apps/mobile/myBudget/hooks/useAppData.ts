@@ -7,7 +7,7 @@ import { useTransactions } from "./useTransactions";
 
 export function useAppData(enabled: boolean) {
   const data = useBudgetData(enabled);
-  const { addExpense, removeTransaction } = useTransactions({
+  const { addExpense, editTransaction, removeTransaction } = useTransactions({
     categories: data.categories,
     reload: data.loadAll,
   });
@@ -26,6 +26,7 @@ export function useAppData(enabled: boolean) {
   return {
     ...data,
     addExpense,
+    editTransaction,
     removeTransaction,
     addCategory,
     removeCategory,

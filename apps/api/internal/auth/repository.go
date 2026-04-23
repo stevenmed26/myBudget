@@ -122,7 +122,7 @@ func (r *Repository) CreateUserWithDefaults(ctx context.Context, email, password
 				('Food', '#F97316', TRUE, TRUE, FALSE),
 				('Savings', '#22C55E', TRUE, TRUE, FALSE),
 				('Saved', '#14B8A6', TRUE, FALSE, TRUE),
-				('Tax', '#EF4444', TRUE, TRUE, TRUE),
+				('Withholding', '#EF4444', TRUE, TRUE, TRUE),
 				('Housing', '#6366F1', TRUE, TRUE, FALSE)
 		) AS x(name, color, is_default, counts_toward_budget, is_system)
 		WHERE NOT EXISTS (

@@ -3,7 +3,6 @@ import { Text, View } from "react-native";
 import { AnalyticsTrendPoint } from "../types";
 import { ThemeColors } from "../styles/theme";
 import { commonStyles } from "../styles/common";
-import { formatCents } from "../lib/format";
 
 const CHART_HEIGHT = 180;
 const GRID_LINES = 4;

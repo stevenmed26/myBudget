@@ -112,41 +112,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	req.TransactionType = strings.TrimSpace(req.TransactionType)
 	req.TransactionDate = strings.TrimSpace(req.TransactionDate)
 
-	if req.CategoryID == "" {
-		httpx.WriteError(w, http.StatusBadRequest, "category_id is required")
-		return
-	}
-	if req.AmountCents <= 0 {
-		httpx.WriteError(w, http.StatusBadRequest, "amount_cents must be greater than zero")
-		return
-	}
-
-	switch req.TransactionType {
-	case "", "expense":
-		if req.TransactionType == "" {
-			req.TransactionType = "expense"
-		}
-	case "income":
-	default:
-		httpx.WriteError(w, http.StatusBadRequest, "transaction_type must be expense or income")
-		return
-	}
-
-	if req.TransactionDate == "" {
-		req.TransactionDate = time.Now().Format("2006-01-02")
-	}
-	if !isValidISODate(req.TransactionDate) {
-		httpx.WriteError(w, http.StatusBadRequest, "transaction_date must be YYYY-MM-DD")
-		return
-	}
-
-	owned, err := h.categoryRepo.ExistsOwnedByUser(r.Context(), req.CategoryID, userID)
-	if err != nil {
-		httpx.WriteInternalError(w, "transaction category ownership check failed", err, "failed to validate category")
-		return
-	}
-	if !owned {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid category_id")
+	if !h.prepareTransactionRequest(w, r, userID, &req) {
 		return
 	}
 
@@ -157,6 +123,88 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, item)
+}
+
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	transactionID := chi.URLParam(r, "transactionID")
+	if strings.TrimSpace(transactionID) == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "transactionID is required")
+		return
+	}
+
+	var req UpdateTransactionRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.CategoryID = strings.TrimSpace(req.CategoryID)
+	req.TransactionType = strings.TrimSpace(req.TransactionType)
+	req.TransactionDate = strings.TrimSpace(req.TransactionDate)
+
+	if !h.prepareTransactionRequest(w, r, userID, &req) {
+		return
+	}
+
+	item, err := h.repo.Update(r.Context(), userID, transactionID, req)
+	if err != nil {
+		if err == ErrTransactionNotFound {
+			httpx.WriteError(w, http.StatusNotFound, "transaction not found")
+			return
+		}
+		httpx.WriteInternalError(w, "transaction update failed", err, "failed to update transaction")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, item)
+}
+
+func (h *Handler) prepareTransactionRequest(w http.ResponseWriter, r *http.Request, userID string, req *CreateTransactionRequest) bool {
+	if req.CategoryID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "category_id is required")
+		return false
+	}
+	if req.AmountCents <= 0 {
+		httpx.WriteError(w, http.StatusBadRequest, "amount_cents must be greater than zero")
+		return false
+	}
+
+	switch req.TransactionType {
+	case "", "expense":
+		if req.TransactionType == "" {
+			req.TransactionType = "expense"
+		}
+	case "income":
+	default:
+		httpx.WriteError(w, http.StatusBadRequest, "transaction_type must be expense or income")
+		return false
+	}
+
+	if req.TransactionDate == "" {
+		req.TransactionDate = time.Now().Format("2006-01-02")
+	}
+	if !isValidISODate(req.TransactionDate) {
+		httpx.WriteError(w, http.StatusBadRequest, "transaction_date must be YYYY-MM-DD")
+		return false
+	}
+
+	owned, err := h.categoryRepo.ExistsOwnedByUser(r.Context(), req.CategoryID, userID)
+	if err != nil {
+		httpx.WriteInternalError(w, "transaction category ownership check failed", err, "failed to validate category")
+		return false
+	}
+	if !owned {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid category_id")
+		return false
+	}
+
+	return true
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

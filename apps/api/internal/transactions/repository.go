@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
+
 	"mybudget-api/internal/db"
 )
 
@@ -96,6 +98,60 @@ func (r *Repository) Create(ctx context.Context, userID string, req CreateTransa
 		&t.UpdatedAt,
 		&t.DeletedAt,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &t, nil
+}
+
+func (r *Repository) Update(ctx context.Context, userID, transactionID string, req UpdateTransactionRequest) (*Transaction, error) {
+	const q = `
+		UPDATE transactions
+		SET category_id = $3,
+			amount_cents = $4,
+			transaction_type = $5,
+			transaction_date = $6::date,
+			merchant_name = $7,
+			note = $8,
+			updated_at = NOW()
+		WHERE id = $1
+			AND user_id = $2
+			AND deleted_at IS NULL
+		RETURNING
+			id, user_id, category_id, amount_cents, transaction_type,
+			transaction_date::text, merchant_name, note, source, created_at, updated_at, deleted_at
+	`
+
+	var t Transaction
+	err := r.db.Pool.QueryRow(
+		ctx,
+		q,
+		transactionID,
+		userID,
+		req.CategoryID,
+		req.AmountCents,
+		req.TransactionType,
+		req.TransactionDate,
+		req.MerchantName,
+		req.Note,
+	).Scan(
+		&t.ID,
+		&t.UserID,
+		&t.CategoryID,
+		&t.AmountCents,
+		&t.TransactionType,
+		&t.TransactionDate,
+		&t.MerchantName,
+		&t.Note,
+		&t.Source,
+		&t.CreatedAt,
+		&t.UpdatedAt,
+		&t.DeletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrTransactionNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

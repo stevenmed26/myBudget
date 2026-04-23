@@ -58,12 +58,14 @@ function AuthenticatedApp({
     recurringRules,
     loadAll,
     addExpense,
+    editTransaction,
     removeTransaction,
     addCategory,
     removeCategory,
     saveBudget,
     saveProfile,
     closePeriod,
+    saveRecurringRule,
     removeRecurringRule,
   } = useAppData(true);
 
@@ -134,6 +136,7 @@ function AuthenticatedApp({
             categories={categories}
             transactions={transactions}
             onAddExpense={addExpense}
+            onEditTransaction={editTransaction}
             onDeleteTransaction={removeTransaction}
           />
         )}
@@ -165,6 +168,7 @@ function AuthenticatedApp({
             categories={categories}
             recurringRules={recurringRules}
             onSaveProfile={saveProfile}
+            onSaveRecurringRule={saveRecurringRule}
             onRemoveRecurringRule={removeRecurringRule}
             onLogout={onLogout}
           />

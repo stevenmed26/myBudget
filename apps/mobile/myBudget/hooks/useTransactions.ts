@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { createRecurringRule, createTransaction, deleteTransaction } from "../api";
+import { createRecurringRule, createTransaction, deleteTransaction, updateTransaction } from "../api";
 import { devLog } from "../lib/devlog";
 import { todayISO } from "../lib/format";
 import { Category } from "../types";
@@ -13,6 +13,16 @@ export type AddExpenseInput = {
   is_recurring?: boolean;
   frequency?: "weekly" | "biweekly" | "monthly" | "yearly";
   start_date?: string;
+};
+
+export type EditTransactionInput = {
+  transactionID: string;
+  category_id: string;
+  amount: string;
+  transaction_type: "expense" | "income";
+  transaction_date: string;
+  merchant_name: string;
+  note: string;
 };
 
 export function useTransactions({
@@ -76,5 +86,30 @@ export function useTransactions({
     [reload]
   );
 
-  return { addExpense, removeTransaction };
+  const editTransaction = useCallback(
+    async (input: EditTransactionInput) => {
+      const parsed = Number(input.amount);
+      if (!input.transactionID || !input.category_id || Number.isNaN(parsed) || parsed <= 0) {
+        throw new Error("Enter a valid transaction");
+      }
+
+      await updateTransaction(input.transactionID, {
+        category_id: input.category_id,
+        amount_cents: Math.round(parsed * 100),
+        transaction_type: input.transaction_type,
+        transaction_date: input.transaction_date || todayISO(),
+        merchant_name: input.merchant_name || undefined,
+        note: input.note || undefined,
+      });
+
+      devLog("transaction updated", {
+        transaction_id: input.transactionID,
+        category_id: input.category_id,
+      });
+      await reload();
+    },
+    [reload]
+  );
+
+  return { addExpense, editTransaction, removeTransaction };
 }

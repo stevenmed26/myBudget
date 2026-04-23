@@ -62,7 +62,6 @@ export function OnboardingScreen({
             { categoryName: "Food", amount: "150.00", cadence: "weekly" },
             { categoryName: "Housing", amount: "300.00", cadence: "weekly" },
             { categoryName: "Savings", amount: "100.00", cadence: "weekly" },
-            { categoryName: "Tax", amount: "120.00", cadence: "weekly" },
         ],
     });
 
@@ -201,7 +200,7 @@ export function OnboardingScreen({
                     <Card colors={colors}>
                         <SectionHeader
                             colors={colors}
-                            title="Tax and location"
+                            title="Withholding and location"
                             subtitle="Allow location access to estimate federal, state, Social Security, and Medicare withholding"
                         />
 
@@ -215,7 +214,7 @@ export function OnboardingScreen({
                                 backgroundColor: colors.surfaceRaised,
                             }}
                         >
-                            <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Tax location</Text>
+                            <Text style={[commonStyles.inputLabel, { color: colors.text }]}>Withholding location</Text>
                             <Text style={[commonStyles.body, { color: colors.text }]}>{draft.locationCode}</Text>
                             <Text style={[commonStyles.caption, { color: colors.textMuted }]}>
                                 We use this to create recurring estimated tax transactions based on your tracking cadence.
@@ -303,7 +302,7 @@ export function OnboardingScreen({
                         Location: {draft.locationCode || "US-TX"}
                         </Text>
                         <Text style={[commonStyles.body, { color: colors.text }]}>
-                        Tax estimate: automatic
+                        Withholding estimate: automatic
                         </Text>
                         <Text style={[commonStyles.body, { color: colors.text }]}>
                         Smart budgeting: {draft.smartBudgetingEnabled ? "On" : "Off"}
