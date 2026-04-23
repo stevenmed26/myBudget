@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"mybudget-api/internal/db"
+	"mybudget-api/internal/taxes"
 )
 
 type Repository struct {
@@ -156,6 +157,15 @@ func (r *Repository) Submit(ctx context.Context, userID string, req SubmitReques
 		if _, err := tx.Exec(ctx, insertBudget, categoryID, item.AmountCents, item.Cadence, effectiveFrom); err != nil {
 			return err
 		}
+	}
+
+	if _, err := taxes.SyncRecurringRules(ctx, tx, userID, taxes.ProfileInput{
+		TrackingCadence:   req.TrackingCadence,
+		IncomeAmountCents: req.IncomeAmountCents,
+		IncomeCadence:     req.IncomeCadence,
+		LocationCode:      req.LocationCode,
+	}, effectiveFrom); err != nil {
+		return err
 	}
 
 	return tx.Commit(ctx)

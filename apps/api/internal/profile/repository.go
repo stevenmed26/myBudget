@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"mybudget-api/internal/db"
+	"mybudget-api/internal/taxes"
 )
 
 type Repository struct {
@@ -223,6 +224,14 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 		&p.UpdatedAt,
 	)
 	if err == nil {
+		if _, err := taxes.SyncRecurringRules(ctx, tx, userID, taxes.ProfileInput{
+			TrackingCadence:   req.TrackingCadence,
+			IncomeAmountCents: req.IncomeAmountCents,
+			IncomeCadence:     req.IncomeCadence,
+			LocationCode:      req.LocationCode,
+		}, effectiveFrom); err != nil {
+			return nil, err
+		}
 		if err := tx.Commit(ctx); err != nil {
 			return nil, err
 		}
@@ -307,6 +316,15 @@ func (r *Repository) InsertNewVersion(ctx context.Context, userID string, req Up
 		&p.UpdatedAt,
 	)
 	if err != nil {
+		return nil, err
+	}
+
+	if _, err := taxes.SyncRecurringRules(ctx, tx, userID, taxes.ProfileInput{
+		TrackingCadence:   req.TrackingCadence,
+		IncomeAmountCents: req.IncomeAmountCents,
+		IncomeCadence:     req.IncomeCadence,
+		LocationCode:      req.LocationCode,
+	}, effectiveFrom); err != nil {
 		return nil, err
 	}
 

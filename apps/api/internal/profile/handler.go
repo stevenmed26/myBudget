@@ -7,6 +7,7 @@ import (
 
 	"mybudget-api/internal/auth"
 	"mybudget-api/internal/httpx"
+	"mybudget-api/internal/taxes"
 )
 
 type Handler struct {
@@ -105,6 +106,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.LocationCode == "" {
 		req.LocationCode = "US-TX"
 	}
+	taxEstimate := taxes.EstimateForProfile(taxes.ProfileInput{
+		TrackingCadence:   req.TrackingCadence,
+		IncomeAmountCents: req.IncomeAmountCents,
+		IncomeCadence:     req.IncomeCadence,
+		LocationCode:      req.LocationCode,
+	})
+	req.EstimatedTaxRateBps = taxEstimate.EffectiveRateBps
 
 	effectiveFrom := time.Now().Format("2006-01-02")
 
